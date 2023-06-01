@@ -1,0 +1,39 @@
+<component name="InspectionProjectProfileManager">
+  <profile version="1.0">
+    <option name="myName" value="Project Default" />
+    <inspection_tool class="DuplicatedCode" enabled="true" level="WEAK WARNING" enabled_by_default="true">
+      <Languages>
+        <language minSize="143" name="Python" />
+      </Languages>
+    </inspection_tool>
+    <inspection_tool class="PyShadowingBuiltinsInspection" enabled="true" level="WEAK WARNING" enabled_by_default="true">
+      <option name="ignoredNames">
+        <list>
+          <option value="type" />
+          <option value="min" />
+          <option value="max" />
+        </list>
+      </option>
+    </inspection_tool>
+    <inspection_tool class="PyUnresolvedReferencesInspection" enabled="true" level="WEAK WARNING" enabled_by_default="true">
+      <option name="ignoredIdentifiers">
+        <list>
+          <option value="client.SMPPClient.*" />
+          <option value="pdu.SubmitSMPDU.*" />
+          <option value="pdu.PDU.*" />
+          <option value="pdu.QuerySMPDU.*" />
+          <option value="pdu.QuerySMRespPDU.*" />
+          <option value="pdu.CancelSMPDU.*" />
+          <option value="pdu.ReplaceSMPDU.*" />
+          <option value="pdu.DataSMPDU.*" />
+          <option value="pdu.DeliverSMRespPDU.*" />
+          <option value="pdu.DeliverSMPDU.*" />
+          <option value="pdu.SubmitSMRespPDU.*" />
+          <option value="pdu.BindTransmitterPDU.*" />
+          <option value="pdu.BindTransmitterRespPDU.*" />
+          <option value="pdu.AlertNotificationPDU.*" />
+        </list>
+      </option>
+    </inspection_tool>
+  </profile>
+</component>
