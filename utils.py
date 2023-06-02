@@ -16,16 +16,16 @@ def gen_pdu(command_name):
             'CMPP_TERMINATE_RESP': CmppTerminateRespPDU,  # 终止连接应答
             'CMPP_SUBMIT': CmppSubmitPDU,  # 提交短信
             'CMPP_SUBMIT_RESP': CmppSubmitRespPDU,  # 提交短信应答
-            # 'CMPP_DELIVER': 0x00000005,  # 短信下发
-            # 'CMPP_DELIVER_RESP': 0x80000005,  # 下发短信应答
+            'CMPP_DELIVER': CmppDeliverPDU,  # 短信下发
+            'CMPP_DELIVER_RESP': CmppDeliverRespPDU,  # 下发短信应答
             'CMPP_QUERY': CmppQueryPDU,  # 发送短信状态查询
             'CMPP_QUERY_RESP': CmppQueryRespPDU,  # 发送短信状态查询应答
-            # 'CMPP_CANCEL': 0x00000007,  # 删除短信
-            # 'CMPP_CANCEL_RESP': 0x80000007,  # 删除短信应答
-            # 'CMPP_ACTIVE_TEST': 0x00000008,  # 激活测试
-            # 'CMPP_ACTIVE_TEST_RESP': 0x80000008,  # 激活测试应答
-            # 'CMPP_FWD': 0x00000009,  # 消息前转
-            # 'CMPP_FWD_RESP': 0x80000009,  # 消息前转应答
+            'CMPP_CANCEL': CmppCancelPDU,  # 删除短信
+            'CMPP_CANCEL_RESP': CmppCancelRespPDU,  # 删除短信应答
+            'CMPP_ACTIVE_TEST': CmppActiveTestPDU,  # 激活测试
+            'CMPP_ACTIVE_TEST_RESP': CmppActiveTestRespPDU,  # 激活测试应答
+            'CMPP_FWD': CmppFwdPDU,  # 消息前转
+            'CMPP_FWD_RESP': CmppFwdRespPDU,  # 消息前转应答
             # 'CMPP_MT_ROUTE': 0x00000010,  # MT 路由请求
             # 'CMPP_MT_ROUTE_RESP': 0x80000010,  # MT 路由请求应答
             # 'CMPP_MO_ROUTE': 0x00000011,  # MO 路由请求

@@ -17,6 +17,7 @@ class SP:
         self.msg_fmt = 0
         self.last_msg_id = None
         self.fuzz_num = 0
+        self.is_first_handle = True
 
         # Set up logger
         self.logger = logging.getLogger(__name__)
@@ -51,12 +52,14 @@ class SP:
         """
         self.cmpp_connect()
         time.sleep(1)
-        # t2 = threading.Thread(target=self.enquire)
-        # t2.start()
-        for i in range(loop):
+        t2 = threading.Thread(target=self.active_test)
+        t2.start()
+        while True:
             option = input("请输入你要执行的操作编号(0.测试,1.发送消息):")
             if option == "0":
                 self.cmpp_query()
+                time.sleep(interval)
+                self.cmpp_cancel(self.last_msg_id)
                 time.sleep(interval)
             elif option == "1":
                 for i in range(count):
@@ -64,6 +67,7 @@ class SP:
                     if contains_chinese(msg):
                         self.msg_fmt = 8
                     if msg.strip().upper() == "Q":
+                        self.cmpp_terminate()
                         break
                     self.cmpp_submit(msg)
                     time.sleep(interval)
@@ -76,43 +80,48 @@ class SP:
 
     def handle(self):
         while True:
+            if self.is_first_handle is False and self.connect_ismg is False:
+                self.logger.warning("handle() exit!")
+                break
             length = self.client.recv(4)
             command_length = struct.unpack(">I", length)[0]
             resp = length + self.client.recv(command_length - 4)
             command_id = struct.unpack(">L", resp[4:8])[0]
             command_name = get_command_name(command_id)
             if command_name == "CMPP_CONNECT_RESP":
+                self.is_first_handle = False
                 self.parse_cmpp_connect_resp(resp, command_name)
             elif command_name == "CMPP_TERMINATE_RESP":
                 self.parse_cmpp_terminate_resp(resp, command_name)
             elif command_name == "CMPP_SUBMIT_RESP":
                 self.parse_cmpp_submit_resp(resp, command_name)
-            # elif command_name == "deliver_sm":
-            #     self.parse_deliver_sm(resp, command_name)
+            elif command_name == "CMPP_DELIVER":
+                self.parse_cmpp_deliver(resp, command_name)
             # elif command_name == "data_sm_resp":
             #     self.parse_data_sm_resp(resp, command_name)
-            # elif command_name == "query_sm_resp":
-            #     self.parse_query_sm_resp(resp, command_name)
-            # elif command_name == "enquire_link_resp":
-            #     self.parse_enquire_link_resp(resp, command_name)
-            # elif command_name == "cancel_sm_resp":
-            #     self.parse_cancel_sm_resp(resp, command_name)
-            # elif command_name == "replace_sm_resp":
-            #     self.parse_replace_sm_resp(resp, command_name)
+            elif command_name == "CMPP_QUERY_RESP":
+                self.parse_cmpp_query_resp(resp, command_name)
+            elif command_name == "CMPP_ACTIVE_TEST_RESP":
+                self.parse_cmpp_active_test_resp(resp, command_name)
+            elif command_name == "CMPP_CANCEL_RESP":
+                self.parse_cmpp_cancel_resp(resp, command_name)
+            elif command_name == "CMPP_ACTIVE_TEST_RESP":
+                self.parse_cmpp_active_test_resp(resp, command_name)
             # else:
             #     self.logger.error("异常数据")
             #     with open(f"./data/err_resp_data/{self.fuzz_num}", "wb") as f:
             #         f.write(resp)
 
-    def enquire(self):
+    def active_test(self):
         while True:
-            if self.client is None:
+            if not self.connect_ismg:
                 break
             try:
-                self.enquire_link()
-                time.sleep(30)
-            except AttributeError as e:
+                self.cmpp_active_test()
+                time.sleep(60)
+            except Exception as e:
                 self.logger.error(e)
+                break
     def base_send(self, command_name, **kwargs):
         command_id = get_command_id(command_name)
         self.sequence_id += 1
@@ -153,6 +162,7 @@ class SP:
 
     def parse_cmpp_terminate_resp(self, resp, command_name):
         pdu = self.parse_base_resp(resp, command_name)
+        print(pdu.sequence_id ,self.sequence_id)
         if pdu.sequence_id == self.sequence_id:
             self.logger.info(f"断开连接,{pdu}")
             self.connect_ismg = False
@@ -244,31 +254,35 @@ class SP:
     #         print(data.decode())
     #     if pdu.command_status == consts.SMPP_ESME_ROK:
     #         self.deliver_sm_resp(pdu.sequence_number)
-
-    def deliver_sm_resp(self, sequence_number):
-        command_name = "deliver_sm_resp"
-        command_id = get_command_id(command_name)
-        pdu = gen_pdu(command_name)(command_id=command_id, command_status=0, sequence_number=sequence_number)
-        data = pdu.pack()
-        self.client.sendall(data)
+    def parse_cmpp_deliver(self,data,command_name):
+        msg = data[89:-20]
+        print("收到ISMG投递消息：",msg.decode())
+        pdu = gen_pdu(command_name)(msg_content=msg.decode())
+        unpack_data = pdu.unpack(data)
+        pdu.msg_id = unpack_data[3]
+        self.cmpp_deliver_resp(pdu.msg_id)
+    def cmpp_deliver_resp(self, msg_id):
+        body = {
+            "msg_id": msg_id,
+            "result": 0,
+        }
+        self.base_send("CMPP_DELIVER_RESP",**body)
 
     def cmpp_query(self):
         body = {
             'time': gen_time(),
-            'query_type': 0,
-            # 'query_code': '',
+            'query_type': 1,
+            'query_code': config.SERVICE_ID,
             'reserve': '',
         }
         self.base_send("CMPP_QUERY", **body)
 
-    def parse_query_sm_resp(self, resp, command_name):
-        message_id = resp[16:-3]
-        pdu = gen_pdu(command_name)(message_id=message_id)
-        resp_data = pdu.unpack(resp)
-        pdu.command_length, pdu.command_id, pdu.command_status, pdu.sequence_number, pdu.message_id, pdu.final_date, \
-            pdu.message_state, pdu.error_code = resp_data
-        if pdu.sequence_number == self.sequence_number:
-            self.logger.info(f"消息状态:{pdu}")
+    def parse_cmpp_query_resp(self, resp, command_name):
+        pdu = gen_pdu(command_name)()
+        unpack_data = pdu.unpack(resp)
+        ti = unpack_data[3]
+        if self.sequence_id:
+            print("time:",ti.decode())
 
     # def cancel_sm(self, message_id):
     #     body = {
@@ -283,10 +297,17 @@ class SP:
     #     }
     #     self.base_send_sm("cancel_sm", **body)
 
-    def parse_cancel_sm_resp(self, resp, command_name):
-        pdu = self.parse_base_resp(resp, command_name)
-        if pdu.sequence_number == self.sequence_number:
-            self.logger.info(f"{command_name}:{pdu}")
+    def cmpp_cancel(self,msg_id):
+        self.base_send("CMPP_CANCEL",msg_id=msg_id)
+    def parse_cmpp_cancel_resp(self, resp, command_name):
+        pdu = gen_pdu(command_name)()
+        unpack_data = pdu.unpack(resp)
+        success_id = unpack_data[3]
+        if self.sequence_id:
+            if success_id == 0:
+                self.logger.info("success")
+            elif success_id == 1:
+                self.logger.warning("failed")
 
     # def replace_sm(self, message_id, new_message):
     #     body = {
@@ -310,16 +331,13 @@ class SP:
 
 
 
-    def enquire_link(self):
-        self.base_send_sm("enquire_link")
+    def cmpp_active_test(self):
+        self.base_send("CMPP_ACTIVE_TEST")
 
-    # def parse_enquire_link_resp(self, resp, command_name):
-    #     pdu = self.parse_base_resp(resp, command_name)
-    #     if pdu.sequence_number == self.sequence_number:
-    #         if pdu.command_status != consts.SMPP_ESME_ROK:
-    #             self.client_state = consts.SMPP_CLIENT_STATE_OPEN
-
-
+    def parse_cmpp_active_test_resp(self, resp, command_name):
+        pdu = self.parse_base_resp(resp, command_name)
+        if pdu.sequence_id == self.sequence_id:
+            print(pdu)
 
 
     # def fuzz(self, count, loop, interval, command_name="submit_sm"):

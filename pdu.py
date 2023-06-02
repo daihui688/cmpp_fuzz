@@ -164,63 +164,61 @@ class CmppSubmitRespPDU(PDU):
         return super().__str__() + f"Msg_Id:{self.msg_id}),Result:{self.result}"
 
 
-class DeliverSMPDU(PDU):
+class CmppDeliverPDU(PDU):
+    body = {
+        'msg_id': Param(type=int, size=8),
+        'dest_id': Param(type=str,size=21),
+        'service_id': Param(type=str, size=10),
+        'tp_pid': Param(type=int, size=1),
+        'tp_udhi': Param(type=int, size=1),
+        'msg_fmt': Param(type=int, size=1),
+        'src_terminal_id': Param(type=str, size=32),
+        'src_terminal_type': Param(type=int, size=1),
+        'registered_delivery': Param(type=int, size=1),
+        'msg_length': Param(type=int, size=1),
+        'msg_content': Param(type=str),
+        'link_id': Param(type=str, size=20),
+    }
+    # 如果要发送状态报告
+    msg_content = {
+        "msg_id": Param(type=int,size=8),
+        "Stat": Param(type=str,size=7),
+        "Submit_time": Param(type=str,size=10),
+        "Done_time": Param(type=str,size=10),
+        "Dest_terminal_Id": Param(type=str,size=21),
+        "SMSC_sequence": Param(type=int,size=4),
+    }
+
     def __init__(self, **kwargs):
         self._set_vals(kwargs)
-        grammar = f">LLLLBBB{len(self.source_addr) + 1}sBB{len(self.destination_addr) + 1}scBcccBcBcB{self.sm_length}s" \
-                  + f"{len(self.optional_params)}s"
+        try:
+            if self.msg_content:
+                self.msg_bytes = self.gen_msg_bytes()
+        except AttributeError as e:
+            pass
+        self.msg_length = len(self.msg_bytes)
+        grammar = f">3IQ21s10s3B32s3B{self.msg_length}s20s"
         super().__init__(grammar)
-        self.service_type = None
-        self.source_addr_ton = None
-        self.source_addr_npi = None
-        self.dest_addr_ton = None
-        self.dest_addr_npi = None
-        self.esm_class = None
-        self.protocol_id = None
-        self.priority_flag = None
-        self.schedule_delivery_time = None
-        self.validity_period = None
-        self.registered_delivery = None
-        self.replace_if_present_flag = None
-        self.data_coding = None
-        self.sm_default_msg_id = None
-        self.short_message = None
-        self.message_bytes = None
+
+    def pack(self):
+        data = self.struct.pack(self.total_length, self.command_id, self.sequence_id, self.msg_id,self.dest_id.encode(),
+                                self.service_id.encode(),self.tp_pid,self.tp_udhi, self.msg_fmt,
+                                self.src_terminal_id.encode(), self.src_terminal_type,
+                                self.registered_delivery,self.msg_length, self.msg_bytes, self.link_id.encode())
+        return data
+
+class CmppDeliverRespPDU(PDU):
+    def __init__(self, **kwargs):
+        self._set_vals(kwargs)
+        grammar = f">3IQI"
+        super().__init__(grammar)
+
+    def pack(self):
+        data = self.struct.pack(self.total_length, self.command_id, self.sequence_id, self.msg_id, self.result)
+        return data
 
     def __str__(self):
-        return super().__str__()[:-1] + f",source_addr={self.source_addr},destination_addr={self.destination_addr}"
-
-
-class DeliverSMRespPDU(PDU):
-    def __init__(self, **kwargs):
-        self._set_vals(kwargs)
-        grammar = f">LLLLc"
-        super().__init__(grammar)
-        # self.message_id = consts.NULL_BYTE
-
-    def pack(self):
-        data = self.struct.pack(self.command_length, self.command_id, self.command_status, self.sequence_number,
-                                self.message_id)
-        return data
-
-
-class DataSMPDU(PDU):
-    def __init__(self, **kwargs):
-        self._set_vals(kwargs)
-
-        message_bytes = self.gen_message_bytes()
-        self.message_payload = message_bytes + b'\x1b\x3c\x54\x52\x49\x41\x4c\x1b\x3e'
-        self.payload_length = len(self.message_payload)
-        grammar = f">LLLLcBB{len(self.source_addr) + 1}sBB{len(self.destination_addr) + 1}scBBHH{self.payload_length}s"
-        super().__init__(grammar)
-
-    def pack(self):
-        data = self.struct.pack(self.command_length, self.command_id, self.command_status, self.sequence_number,
-                                self.service_type, self.source_addr_ton, self.source_addr_npi,
-                                self.source_addr.encode() + b'\x00', self.dest_addr_ton, self.dest_addr_npi,
-                                self.destination_addr.encode() + b'\x00', self.esm_class, self.registered_delivery,
-                                self.data_coding, self.message_payload_tag, self.payload_length, self.message_payload)
-        return data
+        return super().__str__() + f"Msg_Id:{self.msg_id}),Result:{self.result}"
 
 
 class CmppQueryPDU(PDU):
@@ -243,100 +241,171 @@ class CmppQueryPDU(PDU):
 
 
 class CmppQueryRespPDU(PDU):
-    # params = {
-    #     'message_id': Param(type=str, max=65),
-    #     'final_date': Param(type=str, max=17),
-    #     'message_state': Param(type=int, size=1),
-    #     'error_code': Param(type=int, size=1),
-    # }
+    body = {
+        'time': Param(type=str, size=8),
+        'query_type': Param(type=int, size=1),
+        'query_code': Param(type=str, size=10),
+        'mt_tl_msg': Param(type=int, size=4), # 从SP接收信息总数
+        'mt_tl_usr': Param(type=int, size=4),# 从SP接收用户总数
+        'mt_scs': Param(type=int, size=4),# 成功转发数量
+        'mt_wt': Param(type=int, size=4),# 待转发数量
+        'mt_fl': Param(type=int, size=4),# 转发失败数量
+        'mo_scs': Param(type=int, size=4),# 向SP成功送达数量
+        'mo_wt': Param(type=int, size=4),# 向SP待送达数量
+        'mo_fl': Param(type=int, size=4),# 向SP送达失败数量
+    }
 
     def __init__(self, **kwargs):
         self._set_vals(kwargs)
-        grammar = f">LLLL{len(self.message_id)}sBBB"
+        grammar = f">3I8sB10s8I"
         super().__init__(grammar)
+
+    def pack(self):
+        data = self.struct.pack(self.total_length, self.command_id, self.sequence_id,self.time.encode(),self.query_type,
+                                self.query_code.encode(),self.mt_tl_msg,self.mt_tl_usr,self.mt_scs,self.mt_wt,
+                                self.mt_fl,self.mo_scs,self.mo_wt,self.mo_fl)
+        return data
 
     def __str__(self):
-        return super().__str__() + f"message_id:{self.message_id}),final_date:{self.final_date}," + \
-            f"message_state:{self.message_state},error_code:{self.error_code}"
+        return super().__str__() + ''
 
 
-class CancelSMPDU(PDU):
-    # params = {
-    #     'service_type': Param(type=str, max=6),
-    #     'message_id': Param(type=str, max=65),
-    #     'source_addr_ton': Param(type=int, size=1),
-    #     'source_addr_npi': Param(type=int, size=1),
-    #     'source_addr': Param(type=str, max=21),
-    #     'dest_addr_ton': Param(type=int, size=1),
-    #     'dest_addr_npi': Param(type=int, size=1),
-    #     'destination_addr': Param(type=str, max=21),
-    # }
-
+class CmppCancelPDU(PDU):
+    body = {
+        'msg_id': Param(type=int,size=8),
+    }
     def __init__(self, **kwargs):
         self._set_vals(kwargs)
-        grammar = f">LLLLc{len(self.message_id) + 1}sBB{len(self.source_addr) + 1}sBB{len(self.destination_addr) + 1}s"
+        grammar = f">3IQ"
         super().__init__(grammar)
 
     def pack(self):
-        data = self.struct.pack(self.command_length, self.command_id, self.command_status, self.sequence_number,
-                                self.service_type, self.message_id.encode() + b'\x00',
-                                self.source_addr_ton, self.source_addr_npi, self.source_addr.encode() + b'\x00',
-                                self.dest_addr_ton, self.dest_addr_npi, self.destination_addr.encode() + b'\x00')
+        data = self.struct.pack(self.total_length, self.command_id, self.sequence_id, self.msg_id)
         return data
 
 
-class CancelSMRespPDU(PDU):
+class CmppCancelRespPDU(PDU):
+    body = {
+        'success_id': Param(type=int, size=4),
+    }
     def __init__(self, **kwargs):
         self._set_vals(kwargs)
-        super().__init__()
-
-
-class ReplaceSMPDU(PDU):
-    # body = {
-    #     'message_id': Param(type=str, max=65),
-    #     'source_addr_ton': Param(type=int, size=1),
-    #     'source_addr_npi': Param(type=int, size=1),
-    #     'source_addr': Param(type=str, max=21),
-    #     'schedule_delivery_time': Param(type=int, max=17),
-    #     'validity_period': Param(type=int, max=17),
-    #     'registered_delivery': Param(type=int, size=1),
-    #     'sm_default_msg_id': Param(type=int, size=1),
-    #     'sm_length': Param(type=int, size=1),
-    #     'short_message': Param(type=str, max=254, len_field='sm_length'),
-    # }
-
-    def __init__(self, **kwargs):
-        self._set_vals(kwargs)
-        self.message_bytes = self.gen_message_bytes()
-        self.sm_length = len(self.message_bytes)
-        grammar = f">LLLL{len(self.message_id) + 1}sBB{len(self.source_addr) + 1}sBBBBB{self.sm_length}s"
+        grammar = f">4I"
         super().__init__(grammar)
 
     def pack(self):
-        data = self.struct.pack(self.command_length, self.command_id, self.command_status, self.sequence_number,
-                                self.message_id.encode() + b'\x00', self.source_addr_ton, self.source_addr_npi,
-                                self.source_addr.encode() + b'\x00', self.schedule_delivery_time, self.validity_period,
-                                self.registered_delivery, self.sm_default_msg_id, self.sm_length, self.message_bytes)
+        data = self.struct.pack(self.total_length, self.command_id, self.sequence_id, self.success_id)
         return data
 
 
-class ReplaceSMRespPDU(PDU):
+class CmppActiveTestPDU(PDU):
     def __init__(self, **kwargs):
         self._set_vals(kwargs)
         super().__init__()
 
 
-class EnquireLinkPDU(PDU):
+class CmppActiveTestRespPDU(PDU):
     def __init__(self, **kwargs):
         self._set_vals(kwargs)
-        super().__init__()
+        grammar = f">3Ic"
+        super().__init__(grammar)
 
+    def pack(self):
+        data = self.struct.pack(self.total_length, self.command_id, self.sequence_id, self.reserved.encode())
+        return data
 
-class EnquireLinkRespPDU(PDU):
+class CmppFwdPDU(PDU):
+    body = {
+        'source_id': Param(type=str, size=6),
+        'destination_id': Param(type=str, size=6),
+        'nodes_count': Param(type=int, size=1),
+        'msg_fwd_type': Param(type=int, size=1),
+        'msg_id': Param(type=int, size=8),
+        'pk_total': Param(type=int, size=1),
+        'pk_number': Param(type=int, size=1),
+        'registered_delivery': Param(type=int, size=1),
+        'msg_level': Param(type=int, size=1),
+        'service_id': Param(type=str, size=10),
+        'fee_usertype': Param(type=int, size=1),
+        'fee_terminal_id': Param(type=str, size=21),
+        'fee_terminal_pseudo': Param(type=str, size=32),
+        'fee_terminal_usertype': Param(type=int, size=1),
+        'tp_pid': Param(type=int, size=1),
+        'tp_udhi': Param(type=int, size=1),
+        'msg_fmt': Param(type=int, size=1),
+        'msg_src': Param(type=str, size=6),
+        'fee_type': Param(type=str, size=2),
+        'fee_code': Param(type=str, size=6),
+        'valid_time': Param(type=str, size=17),
+        'at_time': Param(type=str, size=17),
+        'src_id': Param(type=str, size=21),
+        'src_pseudo': Param(type=str, size=32),
+        'src_usertype': Param(type=int, size=1),
+        'src_type': Param(type=int, size=1),
+        'dest_usr_tl': Param(type=int, size=1),
+        'dest_id': Param(type=str, size=21),
+        'dest_pseudo': Param(type=str, size=32),
+        'dest_usertype': Param(type=int, size=1),
+        'msg_length': Param(type=int, size=1),
+        'msg_content': Param(type=str),
+        'link_id': Param(type=str, size=20),
+    }
+    # MO或MT状态报告
+    msg_content = {
+        "msg_id": Param(type=int, size=8),
+        "Stat": Param(type=str, size=7),
+        "CMPP_DELIVER_time": Param(type=str, size=10),
+        "CMPP_DELIVER_RESP_time": Param(type=str, size=10),
+        "Dest_Id": Param(type=str, size=21),
+        "Reserved": Param(type=str, size=4),
+    }
+
     def __init__(self, **kwargs):
         self._set_vals(kwargs)
-        super().__init__()
+        try:
+            if self.msg_content:
+                self.msg_bytes = self.gen_msg_bytes()
+        except AttributeError as e:
+            pass
+        self.msg_length = len(self.msg_bytes)
+        grammar = f">3I6s6s2BQ4B10sB21s32s4B6s2s6s17s17s21s32s3B21s32s2B{self.msg_length}s20s"
+        super().__init__(grammar)
+
+    def pack(self):
+        data = self.struct.pack(self.total_length, self.command_id, self.sequence_id,
+                                self.source_id.encode(),self.destination_id.encode(),self.nodes_count,self.msg_fwd_type,
+                                self.msg_id, self.pk_total,self.pk_number, self.registered_delivery, self.msg_level,
+                                self.service_id.encode(),self.fee_usertype, self.fee_terminal_id.encode(),
+                                self.fee_terminal_pseudo.encode(),self.fee_terminal_usertype, self.tp_pid,
+                                self.tp_udhi, self.msg_fmt, self.msg_src.encode(), self.fee_type.encode(),
+                                self.fee_code.encode(), self.valid_time.encode(), self.at_time.encode(),
+                                self.src_id.encode(), self.src_pseudo.encode(),self.src_usertype,self.src_type,
+                                self.dest_usr_tl, self.dest_id.encode(),self.dest_pseudo.encode(),
+                                self.dest_usertype, self.msg_length, self.msg_bytes, self.link_id.encode())
+        return data
+
+class CmppFwdRespPDU(PDU):
+    body = {
+        "msg_id": Param(type=int, size=8),
+        "pk_total": Param(type=int, size=1),
+        "pk_number": Param(type=int, size=1),
+        "result": Param(type=int, size=4),
+    }
+    def __init__(self, **kwargs):
+        self._set_vals(kwargs)
+        grammar = f">3IQ2BI"
+        super().__init__(grammar)
+
+    def pack(self):
+        data = self.struct.pack(self.total_length, self.command_id, self.sequence_id, self.msg_id,self.pk_total,
+                                self.pk_number,self.result)
+        return data
+
+    def __str__(self):
+        return super().__str__() + f"Msg_Id:{self.msg_id}),Result:{self.result}"
 
 
-if __name__ == '__main__':
-    p = CmppConnectPDU()
+
+
+
+
