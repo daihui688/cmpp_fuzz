@@ -17,7 +17,7 @@ class SP:
         self.msg_fmt = 0
         self.last_msg_id = None
         self.fuzz_num = 0
-        self.is_first_handle = True
+        self.handle_num = 0
 
         # Set up logger
         self.logger = logging.getLogger(__name__)
@@ -26,6 +26,25 @@ class SP:
         formatter = logging.Formatter("%(asctime)s - %(levelname)s - %(message)s")
         handler.setFormatter(formatter)
         self.logger.addHandler(handler)
+
+        self.command_mapping = {
+                "CMPP_CONNECT_RESP": self.parse_cmpp_connect_resp,
+                "CMPP_TERMINATE_RESP": self.parse_cmpp_terminate_resp,
+                "CMPP_SUBMIT_RESP": self.parse_cmpp_submit_resp,
+                "CMPP_DELIVER": self.parse_cmpp_deliver,
+                "CMPP_QUERY_RESP": self.parse_cmpp_query_resp,
+                "CMPP_ACTIVE_TEST_RESP": self.parse_cmpp_active_test_resp,
+                "CMPP_CANCEL_RESP": self.parse_cmpp_cancel_resp,
+                "CMPP_FWD": self.parse_cmpp_fwd,
+                "CMPP_MT_ROUTE": self.cmpp_mt_route_resp,
+                "CMPP_MO_ROUTE": self.cmpp_mo_route_resp,
+                "CMPP_GET_MT_ROUTE": self.cmpp_get_mt_route_resp,
+                "CMPP_GET_MO_ROUTE": self.cmpp_get_mo_route_resp,
+                "CMPP_MT_ROUTE_UPDATE": self.cmpp_mt_route_update_resp,
+                "CMPP_MO_ROUTE_UPDATE": self.cmpp_mo_route_update_resp,
+                "CMPP_PUSH_MT_ROUTE_UPDATE": self.cmpp_push_mt_route_update_resp,
+                "CMPP_PUSH_MO_ROUTE_UPDATE": self.cmpp_push_mo_route_update_resp
+            }
 
     def connect(self, host=config.ISMG_HOST, port=config.ISMG_PORT):
         self.client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -39,6 +58,7 @@ class SP:
             self.logger.info(f"{self.client.getsockname()}连接到{host}:{port}")
             t1 = threading.Thread(target=self.handle)
             t1.start()
+
     def disconnect(self):
         if self.client:
             self.logger.warning(f"SP{self.client.getsockname()}断开连接")
@@ -54,8 +74,9 @@ class SP:
         time.sleep(1)
         t2 = threading.Thread(target=self.active_test)
         t2.start()
-        while True:
-            option = input("请输入你要执行的操作编号(0.测试,1.发送消息):")
+        for i in range(loop):
+            # option = input("请输入你要执行的操作编号(0.测试,1.发送消息):")
+            option = "1"
             if option == "0":
                 self.cmpp_query()
                 time.sleep(interval)
@@ -63,7 +84,8 @@ class SP:
                 time.sleep(interval)
             elif option == "1":
                 for i in range(count):
-                    msg = input("请输入你要发送的消息:")
+                    # msg = input("请输入你要发送的消息:")
+                    msg = "daihui688"
                     if contains_chinese(msg):
                         self.msg_fmt = 8
                     if msg.strip().upper() == "Q":
@@ -77,10 +99,9 @@ class SP:
             else:
                 self.logger.error("错误的编号!")
 
-
     def handle(self):
         while True:
-            if self.is_first_handle is False and self.connect_ismg is False:
+            if self.handle_num > 1 and not self.connect_ismg:
                 self.logger.warning("handle() exit!")
                 break
             length = self.client.recv(4)
@@ -88,46 +109,36 @@ class SP:
             resp = length + self.client.recv(command_length - 4)
             command_id = struct.unpack(">L", resp[4:8])[0]
             command_name = get_command_name(command_id)
-            if command_name == "CMPP_CONNECT_RESP":
-                self.is_first_handle = False
-                self.parse_cmpp_connect_resp(resp, command_name)
-            elif command_name == "CMPP_TERMINATE_RESP":
-                self.parse_cmpp_terminate_resp(resp, command_name)
-            elif command_name == "CMPP_SUBMIT_RESP":
-                self.parse_cmpp_submit_resp(resp, command_name)
-            elif command_name == "CMPP_DELIVER":
-                self.parse_cmpp_deliver(resp, command_name)
-            # elif command_name == "data_sm_resp":
-            #     self.parse_data_sm_resp(resp, command_name)
-            elif command_name == "CMPP_QUERY_RESP":
-                self.parse_cmpp_query_resp(resp, command_name)
-            elif command_name == "CMPP_ACTIVE_TEST_RESP":
-                self.parse_cmpp_active_test_resp(resp, command_name)
-            elif command_name == "CMPP_CANCEL_RESP":
-                self.parse_cmpp_cancel_resp(resp, command_name)
-            elif command_name == "CMPP_ACTIVE_TEST_RESP":
-                self.parse_cmpp_active_test_resp(resp, command_name)
-            # else:
-            #     self.logger.error("异常数据")
-            #     with open(f"./data/err_resp_data/{self.fuzz_num}", "wb") as f:
-            #         f.write(resp)
+            if command_name in self.command_mapping:
+                if command_name == "CMPP_CONNECT_RESP":
+                    self.parse_cmpp_connect_resp(resp, command_name)
+                    self.handle_num = 1
+                else:
+                    # noinspection PyArgumentList
+                    self.command_mapping.get(command_name, lambda: None)(resp, command_name)
+            else:
+                self.logger.error("异常数据")
+                with open(f"./data/err_resp_data/{self.fuzz_num}", "wb") as f:
+                    f.write(resp)
 
     def active_test(self):
         while True:
             if not self.connect_ismg:
                 break
             try:
-                self.cmpp_active_test()
                 time.sleep(60)
+                self.cmpp_active_test()
             except Exception as e:
                 self.logger.error(e)
                 break
+
     def base_send(self, command_name, **kwargs):
         command_id = get_command_id(command_name)
         self.sequence_id += 1
-        pdu = gen_pdu(command_name)(command_id=command_id, sequence_id=self.sequence_id,**kwargs)
+        pdu = gen_pdu(command_name)(command_id=command_id, sequence_id=self.sequence_id, **kwargs)
         data = pdu.pack()
         self.client.sendall(data)
+
     @staticmethod
     def parse_base_resp(resp, command_name):
         header = {
@@ -146,23 +157,25 @@ class SP:
         body = {
             'source_addr': config.SOURCE_ADDR,
             'authenticator_source': authenticator_source,
-            'version':config.VERSION,
+            'version': config.VERSION,
             'timestamp': timestamp,
         }
         self.base_send("CMPP_CONNECT", **body)
+
     def parse_cmpp_connect_resp(self, resp, command_name):
         pdu = gen_pdu(command_name)()
         resp_data = pdu.unpack(resp)
-        pdu.total_length, pdu.command_id, pdu.sequence_id, pdu.status, pdu.authenticatorISMG,pdu.version = resp_data
-        if pdu.sequence_id == self.sequence_id and pdu.status == 0:
+        pdu.total_length, pdu.command_id, pdu.sequence_id, pdu.status, pdu.authenticatorISMG, pdu.version = resp_data
+        if pdu.status == 0:
             self.logger.info(f"与ISMG连接成功,{pdu}")
             self.connect_ismg = True
+
     def cmpp_terminate(self):
         self.base_send("CMPP_TERMINATE")
 
     def parse_cmpp_terminate_resp(self, resp, command_name):
         pdu = self.parse_base_resp(resp, command_name)
-        print(pdu.sequence_id ,self.sequence_id)
+        print(pdu.sequence_id, self.sequence_id)
         if pdu.sequence_id == self.sequence_id:
             self.logger.info(f"断开连接,{pdu}")
             self.connect_ismg = False
@@ -177,7 +190,7 @@ class SP:
             'msg_level': 2,
             'service_id': config.SERVICE_ID,
             'fee_usertype': 3,
-            'fee_terminal_id': "18279230916",
+            'fee_terminal_id': config.SRC_ID,
             'fee_terminal_type': 0,
             'tp_pid': 1,
             'tp_udhi': 1,
@@ -187,9 +200,9 @@ class SP:
             'fee_code': "000001",
             'valid_time': "20230601120000",
             'at_time': "20230531155000",
-            'src_id': "18279230916",
+            'src_id': config.SRC_ID,
             'dest_usr_tl': 1,
-            'dest_terminal_id': "+8613520376620",
+            'dest_terminal_id': config.TERMINAL_ID,
             'dest_terminal_type': 0,
             'msg_content': msg,
             'link_id': "",
@@ -199,74 +212,25 @@ class SP:
     def parse_cmpp_submit_resp(self, resp, command_name):
         pdu = gen_pdu(command_name)()
         resp_data = pdu.unpack(resp)
-        pdu.total_length, pdu.command_id, pdu.sequence_id, pdu.msg_id,pdu.result = resp_data
+        pdu.total_length, pdu.command_id, pdu.sequence_id, pdu.msg_id, pdu.result = resp_data
         if pdu.sequence_id == self.sequence_id:
             self.logger.info(f"发送消息成功,{pdu}")
             self.last_msg_id = pdu.msg_id
 
-    # def data_sm(self, message):
-    #     # body = {
-    #     #     "service_type": consts.NULL_BYTE,
-    #     #     "source_addr_ton": consts.SMPP_TON_INTL,
-    #     #     "source_addr_npi": consts.SMPP_NPI_ISDN,
-    #     #     "source_addr": config.SOURCE_ADDR,
-    #     #     "dest_addr_ton": consts.SMPP_TON_INTL,
-    #     #     "dest_addr_npi": consts.SMPP_NPI_ISDN,
-    #     #     "destination_addr": config.DESTINATION_ADDR,
-    #     #     "esm_class": consts.NULL_BYTE,
-    #     #     "registered_delivery": consts.SMPP_SMSC_DELIVERY_RECEIPT_BOTH,
-    #     #     "data_coding": self.data_coding,
-    #     #     "short_message": message
-    #     # }
-    #     self.base_send_sm("data_sm", **body)
-
-    # def parse_data_sm_resp(self, resp, command_name):
-    #     message_id = resp[16:-1]
-    #     pdu = get_pdu(command_name)(message_id=message_id)
-    #     resp_data = pdu.unpack(resp)
-    #     pdu.command_length, pdu.command_id, pdu.command_status, pdu.sequence_number, pdu.message_id = resp_data[:-1]
-    #     if pdu.sequence_number == self.sequence_number and pdu.command_status == consts.SMPP_ESME_ROK:
-    #         self.logger.info(f"发送消息成功,{pdu}")
-
-    # def parse_deliver_sm(self, resp, command_name):
-    #     sm_length = resp[56]
-    #     # short_message = resp[57:57 + sm_length]
-    #     optional_params = resp[57 + sm_length:]
-    #     # print(sm_length)
-    #     # print(short_message)
-    #     # print(optional_params)
-    #     pdu = get_pdu(command_name)(source_addr=config.SOURCE_ADDR, destination_addr=config.DESTINATION_ADDR,
-    #                                 sm_length=sm_length, optional_params=optional_params)
-    #     resp_data = pdu.unpack(resp)
-    #     pdu.command_length, pdu.command_id, pdu.command_status, pdu.sequence_number = resp_data[:4]
-    #     pdu.optional_params = resp_data[-1]
-    #     if sm_length != 0:
-    #         pdu.short_message = resp_data[-2]
-    #     else:
-    #         pdu.optional_params = resp_data[-1]
-    #         # optional_param_type = struct.unpack(">H", pdu.optional_params[:2])[0]
-    #         # optional_param_name = get_optional_param_name(optional_param_type)
-    #         # print(optional_param_name)
-    #         optional_param_length = struct.unpack(">H", pdu.optional_params[2:4])[0]
-    #         # print(optional_param_length)
-    #         payload = pdu.optional_params[4:4 + optional_param_length]
-    #         data = payload[94:-9]
-    #         print(data.decode())
-    #     if pdu.command_status == consts.SMPP_ESME_ROK:
-    #         self.deliver_sm_resp(pdu.sequence_number)
-    def parse_cmpp_deliver(self,data,command_name):
+    def parse_cmpp_deliver(self, data, command_name):
         msg = data[89:-20]
-        print("收到ISMG投递消息：",msg.decode())
+        print("收到ISMG投递消息：", msg.decode())
         pdu = gen_pdu(command_name)(msg_content=msg.decode())
         unpack_data = pdu.unpack(data)
         pdu.msg_id = unpack_data[3]
         self.cmpp_deliver_resp(pdu.msg_id)
+
     def cmpp_deliver_resp(self, msg_id):
         body = {
             "msg_id": msg_id,
             "result": 0,
         }
-        self.base_send("CMPP_DELIVER_RESP",**body)
+        self.base_send("CMPP_DELIVER_RESP", **body)
 
     def cmpp_query(self):
         body = {
@@ -282,23 +246,11 @@ class SP:
         unpack_data = pdu.unpack(resp)
         ti = unpack_data[3]
         if self.sequence_id:
-            print("time:",ti.decode())
+            print("time:", ti.decode())
 
-    # def cancel_sm(self, message_id):
-    #     body = {
-    #         "service_type": consts.NULL_BYTE,
-    #         'message_id': message_id,
-    #         'source_addr_ton': consts.SMPP_TON_INTL,
-    #         "source_addr_npi": consts.SMPP_NPI_ISDN,
-    #         'source_addr': config.SOURCE_ADDR,
-    #         "dest_addr_ton": consts.SMPP_TON_INTL,
-    #         "dest_addr_npi": consts.SMPP_NPI_ISDN,
-    #         "destination_addr": config.DESTINATION_ADDR,
-    #     }
-    #     self.base_send_sm("cancel_sm", **body)
+    def cmpp_cancel(self, msg_id):
+        self.base_send("CMPP_CANCEL", msg_id=msg_id)
 
-    def cmpp_cancel(self,msg_id):
-        self.base_send("CMPP_CANCEL",msg_id=msg_id)
     def parse_cmpp_cancel_resp(self, resp, command_name):
         pdu = gen_pdu(command_name)()
         unpack_data = pdu.unpack(resp)
@@ -309,36 +261,127 @@ class SP:
             elif success_id == 1:
                 self.logger.warning("failed")
 
-    # def replace_sm(self, message_id, new_message):
-    #     body = {
-    #         'message_id': message_id,
-    #         'source_addr_ton': consts.SMPP_TON_INTL,
-    #         "source_addr_npi": consts.SMPP_NPI_ISDN,
-    #         'source_addr': config.SOURCE_ADDR,
-    #         'schedule_delivery_time': 0,
-    #         'validity_period': 0,
-    #         'registered_delivery': consts.SMPP_SMSC_DELIVERY_RECEIPT_BOTH,
-    #         'sm_default_msg_id': 0,
-    #         'short_message': new_message,
-    #         "data_coding": self.data_coding
-    #     }
-    #     self.base_send_sm("replace_sm", **body)
-
-    def parse_replace_sm_resp(self, resp, command_name):
-        pdu = self.parse_base_resp(resp, command_name)
-        if pdu.sequence_number == self.sequence_number:
-            self.logger.info(f"{command_name}:{pdu}")
-
-
-
     def cmpp_active_test(self):
         self.base_send("CMPP_ACTIVE_TEST")
 
     def parse_cmpp_active_test_resp(self, resp, command_name):
-        pdu = self.parse_base_resp(resp, command_name)
-        if pdu.sequence_id == self.sequence_id:
+        pdu = gen_pdu(command_name)()
+        unpack_data = pdu.unpack(resp)
+        pdu.total_length, pdu.command_id, pdu.sequence_id = unpack_data[:-1]
+        if self.sequence_id:
             print(pdu)
 
+    def parse_cmpp_fwd(self, data, command_name):
+        msg = data[265:-20]
+        print("fwd消息：", msg.decode())
+        pdu = gen_pdu(command_name)(msg_content=msg.decode())
+        unpack_data = pdu.unpack(data)
+        pdu.msg_id = unpack_data[7]
+        self.cmpp_fwd_resp(pdu.msg_id)
+
+    def cmpp_fwd_resp(self, msg_id):
+        body = {
+            "msg_id": msg_id,
+            "pk_total": 1,
+            "pk_number": 1,
+            "result": 0,
+        }
+        self.base_send("CMPP_FWD_RESP", **body)
+
+    def cmpp_mt_route_resp(self,resp, command_name):
+        body = {
+            "route_id": 0,
+            "destination_id": config.DESTINATION_ID,
+            "gateway_ip": config.GATEWAY_IP,
+            "gateway_port": config.GATEWAY_PORT,
+            "start_id": "100000000",
+            "end_id": "999999999",
+            "area_code": "0792",
+            "result": 0,
+            "user_type": 0,
+            "time_stamp": gen_timestamp_str()
+        }
+        self.base_send("CMPP_MT_ROUTE_RESP", **body)
+
+    def cmpp_mo_route_resp(self,resp, command_name):
+        body = {
+            "route_id": 1,
+            "destination_id": config.DESTINATION_ID,
+            "gateway_ip": config.GATEWAY_IP,
+            "gateway_port": config.GATEWAY_PORT,
+            "sp_id": config.SOURCE_ADDR,
+            "sp_code": config.SRC_ID,
+            "sp_acess_type": 0,
+            "start_code": 1000,
+            "end_code": 9999,
+            "result": 0,
+            "time_stamp": gen_timestamp_str()
+        }
+        self.base_send("CMPP_MO_ROUTE_RESP", **body)
+
+    def cmpp_get_mt_route_resp(self,resp, command_name):
+        body = {
+            "route_id": 0,
+            "destination_id": config.DESTINATION_ID,
+            "gateway_ip": config.GATEWAY_IP,
+            "gateway_port": config.GATEWAY_PORT,
+            "start_id": "100000000",
+            "end_id": "999999999",
+            "area_code": "0792",
+            "result": 0,
+            "user_type": 0,
+            "route_total": 1,
+            "route_number": 1,
+            "time_stamp": gen_timestamp_str()
+        }
+        self.base_send("CMPP_GET_MT_ROUTE_RESP", **body)
+
+    def cmpp_get_mo_route_resp(self,resp, command_name):
+        body = {
+            "route_id": 1,
+            "destination_id": config.DESTINATION_ID,
+            "gateway_ip": config.GATEWAY_IP,
+            "gateway_port": config.GATEWAY_PORT,
+            "sp_id": config.SOURCE_ADDR,
+            "sp_code": config.SRC_ID,
+            "sp_acess_type": 0,
+            "service_id": config.SERVICE_ID,
+            "start_code": 1000,
+            "end_code": 9999,
+            "result": 0,
+            "route_total": 1,
+            "route_number": 1,
+            "time_stamp": gen_timestamp_str()
+        }
+        self.base_send("CMPP_GET_MO_ROUTE_RESP", **body)
+
+    def cmpp_mt_route_update_resp(self,resp, command_name):
+        body = {
+            "result": 0,
+            "route_id": 1,
+            "time_stamp": gen_timestamp_str()
+        }
+        self.base_send("CMPP_MT_ROUTE_UPDATE_RESP", **body)
+
+    def cmpp_mo_route_update_resp(self,resp, command_name):
+        body = {
+            "result": 0,
+            "route_id": 1,
+            "time_stamp": gen_timestamp_str()
+        }
+        self.base_send("CMPP_MO_ROUTE_UPDATE_RESP", **body)
+
+    def cmpp_push_mt_route_update_resp(self,resp, command_name):
+        body = {
+            "result": 0,
+        }
+        self.base_send("CMPP_PUSH_MT_ROUTE_UPDATE_RESP", **body)
+
+    def cmpp_push_mo_route_update_resp(self,resp, command_name):
+        body = {
+            "result": 0,
+        }
+        self.base_send("CMPP_PUSH_MO_ROUTE_UPDATE_RESP", **body)
 
     # def fuzz(self, count, loop, interval, command_name="submit_sm"):
     #     if command_name != "bind_transceiver":
@@ -374,5 +417,3 @@ class SP:
     #             finally:
     #                 self.fuzz_num += 1
     #                 time.sleep(interval)
-
-

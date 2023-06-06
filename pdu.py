@@ -167,7 +167,7 @@ class CmppSubmitRespPDU(PDU):
 class CmppDeliverPDU(PDU):
     body = {
         'msg_id': Param(type=int, size=8),
-        'dest_id': Param(type=str,size=21),
+        'dest_id': Param(type=str, size=21),
         'service_id': Param(type=str, size=10),
         'tp_pid': Param(type=int, size=1),
         'tp_udhi': Param(type=int, size=1),
@@ -181,12 +181,12 @@ class CmppDeliverPDU(PDU):
     }
     # 如果要发送状态报告
     msg_content = {
-        "msg_id": Param(type=int,size=8),
-        "Stat": Param(type=str,size=7),
-        "Submit_time": Param(type=str,size=10),
-        "Done_time": Param(type=str,size=10),
-        "Dest_terminal_Id": Param(type=str,size=21),
-        "SMSC_sequence": Param(type=int,size=4),
+        "msg_id": Param(type=int, size=8),
+        "Stat": Param(type=str, size=7),
+        "Submit_time": Param(type=str, size=10),
+        "Done_time": Param(type=str, size=10),
+        "Dest_terminal_Id": Param(type=str, size=21),
+        "SMSC_sequence": Param(type=int, size=4),
     }
 
     def __init__(self, **kwargs):
@@ -201,11 +201,13 @@ class CmppDeliverPDU(PDU):
         super().__init__(grammar)
 
     def pack(self):
-        data = self.struct.pack(self.total_length, self.command_id, self.sequence_id, self.msg_id,self.dest_id.encode(),
-                                self.service_id.encode(),self.tp_pid,self.tp_udhi, self.msg_fmt,
+        data = self.struct.pack(self.total_length, self.command_id, self.sequence_id, self.msg_id,
+                                self.dest_id.encode(),
+                                self.service_id.encode(), self.tp_pid, self.tp_udhi, self.msg_fmt,
                                 self.src_terminal_id.encode(), self.src_terminal_type,
-                                self.registered_delivery,self.msg_length, self.msg_bytes, self.link_id.encode())
+                                self.registered_delivery, self.msg_length, self.msg_bytes, self.link_id.encode())
         return data
+
 
 class CmppDeliverRespPDU(PDU):
     def __init__(self, **kwargs):
@@ -235,8 +237,9 @@ class CmppQueryPDU(PDU):
         super().__init__(grammar)
 
     def pack(self):
-        data = self.struct.pack(self.total_length, self.command_id, self.sequence_id,self.time.encode(),self.query_type,
-                                self.query_code.encode(),self.reserve.encode())
+        data = self.struct.pack(self.total_length, self.command_id, self.sequence_id, self.time.encode(),
+                                self.query_type,
+                                self.query_code.encode(), self.reserve.encode())
         return data
 
 
@@ -245,14 +248,14 @@ class CmppQueryRespPDU(PDU):
         'time': Param(type=str, size=8),
         'query_type': Param(type=int, size=1),
         'query_code': Param(type=str, size=10),
-        'mt_tl_msg': Param(type=int, size=4), # 从SP接收信息总数
-        'mt_tl_usr': Param(type=int, size=4),# 从SP接收用户总数
-        'mt_scs': Param(type=int, size=4),# 成功转发数量
-        'mt_wt': Param(type=int, size=4),# 待转发数量
-        'mt_fl': Param(type=int, size=4),# 转发失败数量
-        'mo_scs': Param(type=int, size=4),# 向SP成功送达数量
-        'mo_wt': Param(type=int, size=4),# 向SP待送达数量
-        'mo_fl': Param(type=int, size=4),# 向SP送达失败数量
+        'mt_tl_msg': Param(type=int, size=4),  # 从SP接收信息总数
+        'mt_tl_usr': Param(type=int, size=4),  # 从SP接收用户总数
+        'mt_scs': Param(type=int, size=4),  # 成功转发数量
+        'mt_wt': Param(type=int, size=4),  # 待转发数量
+        'mt_fl': Param(type=int, size=4),  # 转发失败数量
+        'mo_scs': Param(type=int, size=4),  # 向SP成功送达数量
+        'mo_wt': Param(type=int, size=4),  # 向SP待送达数量
+        'mo_fl': Param(type=int, size=4),  # 向SP送达失败数量
     }
 
     def __init__(self, **kwargs):
@@ -261,9 +264,10 @@ class CmppQueryRespPDU(PDU):
         super().__init__(grammar)
 
     def pack(self):
-        data = self.struct.pack(self.total_length, self.command_id, self.sequence_id,self.time.encode(),self.query_type,
-                                self.query_code.encode(),self.mt_tl_msg,self.mt_tl_usr,self.mt_scs,self.mt_wt,
-                                self.mt_fl,self.mo_scs,self.mo_wt,self.mo_fl)
+        data = self.struct.pack(self.total_length, self.command_id, self.sequence_id, self.time.encode(),
+                                self.query_type,
+                                self.query_code.encode(), self.mt_tl_msg, self.mt_tl_usr, self.mt_scs, self.mt_wt,
+                                self.mt_fl, self.mo_scs, self.mo_wt, self.mo_fl)
         return data
 
     def __str__(self):
@@ -272,8 +276,9 @@ class CmppQueryRespPDU(PDU):
 
 class CmppCancelPDU(PDU):
     body = {
-        'msg_id': Param(type=int,size=8),
+        'msg_id': Param(type=int, size=8),
     }
+
     def __init__(self, **kwargs):
         self._set_vals(kwargs)
         grammar = f">3IQ"
@@ -288,6 +293,7 @@ class CmppCancelRespPDU(PDU):
     body = {
         'success_id': Param(type=int, size=4),
     }
+
     def __init__(self, **kwargs):
         self._set_vals(kwargs)
         grammar = f">4I"
@@ -314,7 +320,11 @@ class CmppActiveTestRespPDU(PDU):
         data = self.struct.pack(self.total_length, self.command_id, self.sequence_id, self.reserved.encode())
         return data
 
+
 class CmppFwdPDU(PDU):
+    """
+    ISMG -> ISMG
+    """
     body = {
         'source_id': Param(type=str, size=6),
         'destination_id': Param(type=str, size=6),
@@ -373,16 +383,18 @@ class CmppFwdPDU(PDU):
 
     def pack(self):
         data = self.struct.pack(self.total_length, self.command_id, self.sequence_id,
-                                self.source_id.encode(),self.destination_id.encode(),self.nodes_count,self.msg_fwd_type,
-                                self.msg_id, self.pk_total,self.pk_number, self.registered_delivery, self.msg_level,
-                                self.service_id.encode(),self.fee_usertype, self.fee_terminal_id.encode(),
-                                self.fee_terminal_pseudo.encode(),self.fee_terminal_usertype, self.tp_pid,
+                                self.source_id.encode(), self.destination_id.encode(), self.nodes_count,
+                                self.msg_fwd_type,
+                                self.msg_id, self.pk_total, self.pk_number, self.registered_delivery, self.msg_level,
+                                self.service_id.encode(), self.fee_usertype, self.fee_terminal_id.encode(),
+                                self.fee_terminal_pseudo.encode(), self.fee_terminal_usertype, self.tp_pid,
                                 self.tp_udhi, self.msg_fmt, self.msg_src.encode(), self.fee_type.encode(),
                                 self.fee_code.encode(), self.valid_time.encode(), self.at_time.encode(),
-                                self.src_id.encode(), self.src_pseudo.encode(),self.src_usertype,self.src_type,
-                                self.dest_usr_tl, self.dest_id.encode(),self.dest_pseudo.encode(),
+                                self.src_id.encode(), self.src_pseudo.encode(), self.src_usertype, self.src_type,
+                                self.dest_usr_tl, self.dest_id.encode(), self.dest_pseudo.encode(),
                                 self.dest_usertype, self.msg_length, self.msg_bytes, self.link_id.encode())
         return data
+
 
 class CmppFwdRespPDU(PDU):
     body = {
@@ -391,21 +403,365 @@ class CmppFwdRespPDU(PDU):
         "pk_number": Param(type=int, size=1),
         "result": Param(type=int, size=4),
     }
+
     def __init__(self, **kwargs):
         self._set_vals(kwargs)
         grammar = f">3IQ2BI"
         super().__init__(grammar)
 
     def pack(self):
-        data = self.struct.pack(self.total_length, self.command_id, self.sequence_id, self.msg_id,self.pk_total,
-                                self.pk_number,self.result)
+        data = self.struct.pack(self.total_length, self.command_id, self.sequence_id, self.msg_id, self.pk_total,
+                                self.pk_number, self.result)
         return data
 
     def __str__(self):
         return super().__str__() + f"Msg_Id:{self.msg_id}),Result:{self.result}"
 
 
+class CmppMtRoutePDU(PDU):
+    """
+    ISMG -> GNS
+    """
+    body = {
+        "source_id": Param(type=str, size=6),
+        "terminal_id": Param(type=str, size=21)
+    }
+
+    def __init__(self, **kwargs):
+        self._set_vals(kwargs)
+        grammar = f">3I6s21s"
+        super().__init__(grammar)
+
+    def pack(self):
+        data = self.struct.pack(self.total_length, self.command_id, self.sequence_id, self.source_id.encode(),
+                                self.terminal_id.encode())
+        return data
 
 
+class CmppMtRouteRespPDU(PDU):
+    body = {
+        "route_id": Param(type=int, size=4),
+        "destination_id": Param(type=str, size=6),
+        "gateway_ip": Param(type=str, size=15),
+        "gateway_port": Param(type=int, size=2),
+        "start_id": Param(type=str, size=9),
+        "end_id": Param(type=str, size=9),
+        "area_code": Param(type=str, size=4),
+        "result": Param(type=int, size=1),
+        "user_type": Param(type=int, size=1),
+        "time_stamp": Param(type=str, size=14),
+    }
+
+    def __init__(self, **kwargs):
+        self._set_vals(kwargs)
+        grammar = f">4I6s15sH9s9s4s2B14s"
+        super().__init__(grammar)
+
+    def pack(self):
+        data = self.struct.pack(self.total_length, self.command_id, self.sequence_id, self.route_id,
+                                self.destination_id.encode(), self.gateway_ip.encode(), self.gateway_port,
+                                self.start_id.encode(), self.end_id.encode(), self.area_code.encode(), self.result,
+                                self.user_type, self.time_stamp.encode())
+        return data
 
 
+class CmppMoRoutePDU(PDU):
+    """
+    ISMG -> GNS
+    """
+    body = {
+        "source_id": Param(type=str, size=6),
+        "sp_code": Param(type=str, size=21),
+        "service_id": Param(type=str, size=10),
+        "service_code": Param(type=int, size=4),
+    }
+
+    def __init__(self, **kwargs):
+        self._set_vals(kwargs)
+        grammar = f">3I6s21s10sI"
+        super().__init__(grammar)
+
+    def pack(self):
+        data = self.struct.pack(self.total_length, self.command_id, self.sequence_id, self.source_id.encode(),
+                                self.sp_code.encode(), self.service_id.encode(), self.service_code)
+        return data
+
+
+class CmppMoRouteRespPDU(PDU):
+    body = {
+        "route_id": Param(type=int, size=4),
+        "destination_id": Param(type=str, size=6),
+        "gateway_ip": Param(type=str, size=15),
+        "gateway_port": Param(type=int, size=2),
+        "sp_id": Param(type=str, size=6),
+        "sp_code": Param(type=str, size=21),
+        "sp_acess_type": Param(type=int, size=1),
+        "start_code": Param(type=int, size=4),
+        "end_code": Param(type=int, size=4),
+        "result": Param(type=int, size=1),
+        "time_stamp": Param(type=str, size=14)
+    }
+
+    def __init__(self, **kwargs):
+        self._set_vals(kwargs)
+        grammar = f">4I6s15sH6s21sB2IB14s"
+        super().__init__(grammar)
+
+    def pack(self):
+        data = self.struct.pack(self.total_length, self.command_id, self.sequence_id, self.route_id,
+                                self.destination_id.encode(), self.gateway_ip.encode(), self.gateway_port,
+                                self.sp_id.encode(), self.sp_code.encode(), self.sp_acess_type, self.start_code,
+                                self.end_code, self.result, self.time_stamp.encode())
+        return data
+
+
+class CmppGetMtRoutePDU(PDU):
+    """
+    ISMG -> GNS
+    """
+    body = {
+        "source_id": Param(type=str, size=6),
+        "route_type": Param(type=str, size=4),
+        "last_route_id": Param(type=int, size=4),
+    }
+
+    def __init__(self, **kwargs):
+        self._set_vals(kwargs)
+        grammar = f">3I6s4si"
+        super().__init__(grammar)
+
+    def pack(self):
+        data = self.struct.pack(self.total_length, self.command_id, self.sequence_id, self.source_id.encode(),
+                                self.route_type.encode(), self.last_route_id)
+        return data
+
+
+class CmppGetMtRouteRespPDU(PDU):
+    body = {
+        "route_id": Param(type=int, size=4),
+        "destination_id": Param(type=str, size=6),
+        "gateway_ip": Param(type=str, size=15),
+        "gateway_port": Param(type=int, size=2),
+        "start_id": Param(type=str, size=9),
+        "end_id": Param(type=str, size=9),
+        "area_code": Param(type=str, size=4),
+        "result": Param(type=int, size=1),
+        "user_type": Param(type=int, size=1),
+        "route_total": Param(type=int, size=4),
+        "route_number": Param(type=int, size=4),
+        "time_stamp": Param(type=str, size=14),
+    }
+
+    def __init__(self, **kwargs):
+        self._set_vals(kwargs)
+        grammar = f">4I6s15sH9s9s4s2B2I14s"
+        super().__init__(grammar)
+
+    def pack(self):
+        data = self.struct.pack(self.total_length, self.command_id, self.sequence_id, self.route_id,
+                                self.destination_id.encode(), self.gateway_ip.encode(), self.gateway_port,
+                                self.start_id.encode(), self.end_id.encode(), self.area_code.encode(), self.result,
+                                self.user_type, self.route_total, self.route_number, self.time_stamp.encode())
+        return data
+
+
+class CmppGetMoRoutePDU(CmppGetMtRoutePDU):
+    """
+    ISMG -> GNS
+    """
+    pass
+
+
+class CmppGetMoRouteRespPDU(PDU):
+    body = {
+        "route_id": Param(type=int, size=4),
+        "destination_id": Param(type=str, size=6),
+        "gateway_ip": Param(type=str, size=15),
+        "gateway_port": Param(type=int, size=2),
+        "sp_id": Param(type=str, size=6),
+        "sp_code": Param(type=str, size=21),
+        "sp_acess_type": Param(type=int, size=1),
+        "service_id": Param(type=str, size=10),
+        "start_code": Param(type=int, size=4),
+        "end_code": Param(type=int, size=4),
+        "result": Param(type=int, size=1),
+        "route_total": Param(type=int, size=4),
+        "route_number": Param(type=int, size=4),
+        "time_stamp": Param(type=str, size=14)
+    }
+
+    def __init__(self, **kwargs):
+        self._set_vals(kwargs)
+        grammar = f">4I6s15sH6s21sB10s2IB2I14s"
+        super().__init__(grammar)
+
+    def pack(self):
+        data = self.struct.pack(self.total_length, self.command_id, self.sequence_id, self.route_id,
+                                self.destination_id.encode(), self.gateway_ip.encode(), self.gateway_port,
+                                self.sp_id.encode(), self.sp_code.encode(), self.sp_acess_type,
+                                self.service_id.encode(),
+                                self.start_code, self.end_code, self.result, self.route_total, self.route_number,
+                                self.time_stamp.encode())
+        return data
+
+
+class CmppMtRouteUpdatePDU(PDU):
+    """
+    ISMG -> GNS
+    """
+    body = {
+        "update_type": Param(type=int, size=1),
+        "route_id": Param(type=int, size=4),
+        "destination_id": Param(type=str, size=6),
+        "gateway_ip": Param(type=str, size=15),
+        "gateway_port": Param(type=int, size=2),
+        "start_id": Param(type=str, size=9),
+        "end_id": Param(type=str, size=9),
+        "area_code": Param(type=str, size=4),
+        "user_type": Param(type=int, size=1),
+    }
+
+    def __init__(self, **kwargs):
+        self._set_vals(kwargs)
+        grammar = f">3IBI6s15sH9s9s4sB"
+        super().__init__(grammar)
+
+    def pack(self):
+        data = self.struct.pack(self.total_length, self.command_id, self.sequence_id, self.update_type, self.route_id,
+                                self.destination_id.encode(), self.gateway_ip.encode(), self.gateway_port,
+                                self.start_id.encode(), self.end_id.encode(), self.area_code.encode(), self.user_type)
+        return data
+
+
+class CmppMtRouteUpdateRespPDU(PDU):
+    body = {
+        "result": Param(type=int, size=1),
+        "route_id": Param(type=int, size=4),
+        "time_stamp": Param(type=str, size=14),
+    }
+
+    def __init__(self, **kwargs):
+        self._set_vals(kwargs)
+        grammar = f">3IBI14s"
+        super().__init__(grammar)
+
+    def pack(self):
+        data = self.struct.pack(self.total_length, self.command_id, self.sequence_id, self.result, self.route_id,
+                                self.time_stamp.encode())
+        return data
+
+
+class CmppMoRouteUpdatePDU(PDU):
+    """
+    ISMG -> GNS
+    """
+    body = {
+        "update_type": Param(type=int, size=1),
+        "route_id": Param(type=int, size=4),
+        "destination_id": Param(type=str, size=6),
+        "gateway_ip": Param(type=str, size=15),
+        "gateway_port": Param(type=int, size=2),
+        "sp_id": Param(type=str, size=6),
+        "sp_code": Param(type=str, size=21),
+        "sp_acess_type": Param(type=int, size=1),
+        "service_id": Param(type=str, size=10),
+        "start_code": Param(type=int, size=4),
+        "end_code": Param(type=int, size=4),
+    }
+
+    def __init__(self, **kwargs):
+        self._set_vals(kwargs)
+        grammar = f">3IBI6s15sH6s21sB10s2I"
+        super().__init__(grammar)
+
+    def pack(self):
+        data = self.struct.pack(self.total_length, self.command_id, self.sequence_id, self.update_type, self.route_id,
+                                self.destination_id.encode(), self.gateway_ip.encode(), self.gateway_port,
+                                self.sp_id.encode(), self.sp_code.encode(), self.sp_acess_type,
+                                self.service_id.encode(), self.start_code, self.end_code)
+        return data
+
+
+class CmppMoRouteUpdateRespPDU(CmppMtRouteUpdateRespPDU):
+    pass
+
+
+class CmppPushMtRouteUpdatePDU(PDU):
+    """
+    GNS -> ISMG
+    """
+    body = {
+        "update_type": Param(type=int, size=1),
+        "route_id": Param(type=int, size=4),
+        "destination_id": Param(type=str, size=6),
+        "gateway_ip": Param(type=str, size=15),
+        "gateway_port": Param(type=int, size=2),
+        "start_id": Param(type=str, size=9),
+        "end_id": Param(type=str, size=9),
+        "area_code": Param(type=str, size=4),
+        "user_type": Param(type=int, size=1),
+        "time_stamp": Param(type=str, size=14),
+    }
+
+    def __init__(self, **kwargs):
+        self._set_vals(kwargs)
+        grammar = f">3IBI6s15sH9s9s4sB14s"
+        super().__init__(grammar)
+
+    def pack(self):
+        data = self.struct.pack(self.total_length, self.command_id, self.sequence_id, self.update_type, self.route_id,
+                                self.destination_id.encode(), self.gateway_ip.encode(), self.gateway_port,
+                                self.start_id.encode(), self.end_id.encode(), self.area_code.encode(), self.user_type,
+                                self.time_stamp.encode())
+        return data
+
+
+class CmppPushMtRouteUpdateRespPDU(PDU):
+    body = {
+        "result": Param(type=int, size=1),
+    }
+
+    def __init__(self, **kwargs):
+        self._set_vals(kwargs)
+        grammar = f">3IB"
+        super().__init__(grammar)
+
+    def pack(self):
+        data = self.struct.pack(self.total_length, self.command_id, self.sequence_id, self.result)
+        return data
+
+
+class CmppPushMoRouteUpdatePDU(PDU):
+    """
+    GNS -> ISMG
+    """
+    body = {
+        "update_type": Param(type=int, size=1),
+        "route_id": Param(type=int, size=4),
+        "destination_id": Param(type=str, size=6),
+        "gateway_ip": Param(type=str, size=15),
+        "gateway_port": Param(type=int, size=2),
+        "sp_id": Param(type=str, size=6),
+        "sp_code": Param(type=str, size=21),
+        "sp_acess_type": Param(type=int, size=1),
+        "service_id": Param(type=str, size=10),
+        "start_code": Param(type=int, size=4),
+        "end_code": Param(type=int, size=4),
+        "time_stamp": Param(type=str, size=14)
+    }
+
+    def __init__(self, **kwargs):
+        self._set_vals(kwargs)
+        grammar = f">3IBI6s15sH6s21sB10s2I14s"
+        super().__init__(grammar)
+
+    def pack(self):
+        data = self.struct.pack(self.total_length, self.command_id, self.sequence_id, self.update_type, self.route_id,
+                                self.destination_id.encode(), self.gateway_ip.encode(), self.gateway_port,
+                                self.sp_id.encode(), self.sp_code.encode(), self.sp_acess_type,
+                                self.service_id.encode(), self.start_code, self.end_code, self.time_stamp.encode())
+        return data
+
+
+class CmppPushMoRouteUpdateRespPDU(CmppPushMtRouteUpdateRespPDU):
+    pass

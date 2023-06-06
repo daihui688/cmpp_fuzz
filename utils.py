@@ -26,22 +26,22 @@ def gen_pdu(command_name):
             'CMPP_ACTIVE_TEST_RESP': CmppActiveTestRespPDU,  # 激活测试应答
             'CMPP_FWD': CmppFwdPDU,  # 消息前转
             'CMPP_FWD_RESP': CmppFwdRespPDU,  # 消息前转应答
-            # 'CMPP_MT_ROUTE': 0x00000010,  # MT 路由请求
-            # 'CMPP_MT_ROUTE_RESP': 0x80000010,  # MT 路由请求应答
-            # 'CMPP_MO_ROUTE': 0x00000011,  # MO 路由请求
-            # 'CMPP_MO_ROUTE_RESP': 0x80000011,  # MO 路由请求应答
-            # 'CMPP_GET_MT_ROUTE': 0x00000012,  # 获取 MT 路由请求
-            # 'CMPP_GET_MT_ROUTE_RESP': 0x80000012,  # 获取 MT 路由请求应答
-            # 'CMPP_MT_ROUTE_UPDATE': 0x00000013,  # MT 路由更新
-            # 'CMPP_MT_ROUTE_UPDATE_RESP': 0x80000013,  # MT 路由更新应答
-            # 'CMPP_MO_ROUTE_UPDATE': 0x00000014,  # MO 路由更新
-            # 'CMPP_MO_ROUTE_UPDATE_RESP': 0x80000014,  # MO 路由更新应答
-            # 'CMPP_PUSH_MT_ROUTE_UPDATE': 0x00000015,  # MT 路由更新
-            # 'CMPP_PUSH_MT_ROUTE_UPDATE_RESP': 0x80000015,  # MT 路由更新应答
-            # 'CMPP_PUSH_MO_ROUTE_UPDATE': 0x00000016,  # MO 路由更新
-            # 'CMPP_PUSH_MO_ROUTE_UPDATE_RESP': 0x80000016,  # MO 路由更新应答
-            # 'CMPP_GET_MO_ROUTE': 0x00000017,  # 获取 MO 路由请求
-            # 'CMPP_GET_MO_ROUTE_RESP': 0x80000017,  # 获取 MO 路由请求应答
+            'CMPP_MT_ROUTE': CmppMtRoutePDU,  # MT 路由请求
+            'CMPP_MT_ROUTE_RESP': CmppMtRouteRespPDU,  # MT 路由请求应答
+            'CMPP_MO_ROUTE': CmppMoRoutePDU,  # MO 路由请求
+            'CMPP_MO_ROUTE_RESP': CmppMoRouteRespPDU,  # MO 路由请求应答
+            'CMPP_GET_MT_ROUTE': CmppGetMtRoutePDU,  # 获取 MT 路由请求
+            'CMPP_GET_MT_ROUTE_RESP': CmppGetMtRouteRespPDU,  # 获取 MT 路由请求应答
+            'CMPP_MT_ROUTE_UPDATE': CmppMtRouteUpdatePDU,  # MT 路由更新
+            'CMPP_MT_ROUTE_UPDATE_RESP': CmppMtRouteUpdateRespPDU,  # MT 路由更新应答
+            'CMPP_MO_ROUTE_UPDATE': CmppMoRouteUpdatePDU,  # MO 路由更新
+            'CMPP_MO_ROUTE_UPDATE_RESP': CmppMoRouteUpdateRespPDU,  # MO 路由更新应答
+            'CMPP_PUSH_MT_ROUTE_UPDATE': CmppPushMtRouteUpdatePDU,  # MT 路由更新
+            'CMPP_PUSH_MT_ROUTE_UPDATE_RESP': CmppPushMtRouteUpdateRespPDU,  # MT 路由更新应答
+            'CMPP_PUSH_MO_ROUTE_UPDATE': CmppPushMoRouteUpdatePDU,  # MO 路由更新
+            'CMPP_PUSH_MO_ROUTE_UPDATE_RESP': CmppPushMoRouteUpdateRespPDU,  # MO 路由更新应答
+            'CMPP_GET_MO_ROUTE': CmppGetMoRoutePDU,  # 获取 MO 路由请求
+            'CMPP_GET_MO_ROUTE_RESP': CmppGetMoRouteRespPDU,  # 获取 MO 路由请求应答
         }[command_name]
     except KeyError:
         raise Exception('Command "%s" is not supported' % command_name)
@@ -74,6 +74,9 @@ def gen_timestamp():
 
 def gen_time():
     return full(now.year) + full(now.month) + full(now.day)
+
+def gen_timestamp_str():
+    return full(now.year) + full(now.month) + full(now.day) + full(now.hour) + full(now.minute) + full(now.second)
 
 
 def gen_authenticator_source(source_addr=config.SOURCE_ADDR, shared_secret=config.SHARED_SECRET,
@@ -115,5 +118,4 @@ def gen_msg_id(sequence_id, gateway_code=106):
     msg_id = (time_part | gateway_part | sequence_part)
     return msg_id
 
-if __name__ == '__main__':
-    print(gen_time())
+
