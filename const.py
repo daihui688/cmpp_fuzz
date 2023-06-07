@@ -132,7 +132,7 @@ CMPP_PUSH_MT_ROUTE_UPDATE_RESP_Result = {
     9:"系统繁忙",
 }
 
-INT_STRUCT_CHAR = {
+INT_PACK_FORMATS = {
     1:"B",
     2:"H",
     4:"L",

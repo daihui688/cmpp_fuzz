@@ -1,6 +1,5 @@
 from faker import Faker
 
-import const
 from utils import *
 
 fake = Faker()
@@ -56,7 +55,7 @@ class CMPPFuzz:
                     size = self.random_int
                 param = struct.pack(f">{size}s", self.random_strs(size).encode())
             elif v.type == int:
-                c = const.INT_STRUCT_CHAR.get(v.size)
+                c = const.INT_PACK_FORMATS.get(v.size)
                 param = struct.pack(">" + c, self.random_ints(v.size))
                 if k == "timestamp":
                     param = struct.pack(">" + c, gen_timestamp())
