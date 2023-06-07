@@ -65,7 +65,7 @@ class ISMG:
         resp_command_name = command_name + "_RESP"
         command_id = get_command_id(resp_command_name)
         self.sequence_id += 1
-        pdu = gen_pdu(resp_command_name)(command_id=command_id, sequence_id=self.sequence_id, **kwargs)
+        pdu = get_pdu(resp_command_name)(command_id=command_id, sequence_id=self.sequence_id, **kwargs)
         data = pdu.pack()
         sock.sendall(data)
 
@@ -75,7 +75,7 @@ class ISMG:
             "command_id": None,
             "sequence_id": None
         }
-        pdu = gen_pdu(command_name)(**header)
+        pdu = get_pdu(command_name)(**header)
         unpacked_data = pdu.unpack(req_data)
         self.sequence_id = unpacked_data[2]
         return unpacked_data
@@ -100,11 +100,11 @@ class ISMG:
 
     def cmpp_submit_resp(self, command_name,sock, req_data):
         msg_bytes = req_data[175:-20]
-        print("recv msg:", msg_bytes.decode())
+        print("recv msg:", msg_bytes)
         data = {
             "msg_bytes": msg_bytes
         }
-        pdu = gen_pdu(command_name)(**data)
+        pdu = get_pdu(command_name)(**data)
         unpacked_data = pdu.unpack(req_data)
         self.sequence_id = unpacked_data[2]
         self.msg_id = gen_msg_id(self.sequence_id)
@@ -114,7 +114,7 @@ class ISMG:
         }
         self.base_send(command_name, sock, **body)
         time.sleep(0.1)
-        self.cmpp_deliver(sock, msg_bytes.decode())
+        # self.cmpp_deliver(sock, msg_bytes.decode())
 
     def cmpp_query_resp(self, command_name,sock, req_data):
         unpacked_data = self.base_parse(command_name, req_data)
@@ -154,23 +154,23 @@ class ISMG:
         unpacked_data = self.base_parse(command_name, req_data)
         msg_id, result = unpacked_data[3:]
         print(msg_id, result)
-        self.cmpp_mo_route(sock)
-        time.sleep(0.1)
-        self.cmpp_fwd(sock, str(msg_id))
-        time.sleep(0.1)
-        self.cmpp_mt_route(sock)
-        time.sleep(0.1)
-        self.cmpp_get_mt_route(sock)
-        time.sleep(0.1)
-        self.cmpp_get_mo_route(sock)
-        time.sleep(0.1)
-        self.cmpp_mt_route_update(sock)
-        time.sleep(0.1)
-        self.cmpp_mo_route_update(sock)
-        time.sleep(0.1)
-        self.cmpp_push_mt_route_update(sock)
-        time.sleep(0.1)
-        self.cmpp_push_mo_route_update(sock)
+        # self.cmpp_mo_route(sock)
+        # time.sleep(0.1)
+        # self.cmpp_fwd(sock, str(msg_id))
+        # time.sleep(0.1)
+        # self.cmpp_mt_route(sock)
+        # time.sleep(0.1)
+        # self.cmpp_get_mt_route(sock)
+        # time.sleep(0.1)
+        # self.cmpp_get_mo_route(sock)
+        # time.sleep(0.1)
+        # self.cmpp_mt_route_update(sock)
+        # time.sleep(0.1)
+        # self.cmpp_mo_route_update(sock)
+        # time.sleep(0.1)
+        # self.cmpp_push_mt_route_update(sock)
+        # time.sleep(0.1)
+        # self.cmpp_push_mo_route_update(sock)
 
     def cmpp_cancel_resp(self, command_name,sock, req_data):
         unpacked_data = self.base_parse(command_name, req_data)

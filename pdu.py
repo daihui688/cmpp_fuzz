@@ -151,6 +151,11 @@ class CmppSubmitPDU(PDU):
 
 
 class CmppSubmitRespPDU(PDU):
+    body = {
+        "msg_id": Param(type=int,size=8),
+        "result": Param(type=int,size=4)
+    }
+
     def __init__(self, **kwargs):
         self._set_vals(kwargs)
         grammar = f">3IQI"
@@ -210,6 +215,10 @@ class CmppDeliverPDU(PDU):
 
 
 class CmppDeliverRespPDU(PDU):
+    body = {
+        "msg_id": Param(type=int, size=8),
+        "result": Param(type=int, size=4)
+    }
     def __init__(self, **kwargs):
         self._set_vals(kwargs)
         grammar = f">3IQI"

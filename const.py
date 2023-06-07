@@ -131,3 +131,10 @@ CMPP_PUSH_MT_ROUTE_UPDATE_RESP_Result = {
     6:"汇接网关路由信息时间戳比本地路由信息时间戳旧",
     9:"系统繁忙",
 }
+
+INT_STRUCT_CHAR = {
+    1:"B",
+    2:"H",
+    4:"L",
+    8:"Q"
+}

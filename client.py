@@ -3,7 +3,7 @@ import socket
 import threading
 import time
 
-from command import get_command_id, get_command_name
+from command import *
 from fuzz import fuzzer
 from utils import *
 
@@ -56,11 +56,14 @@ class SP:
             self.logger.error(f"连接到{host}:{port}失败,{e}")
         else:
             self.logger.info(f"{self.client.getsockname()}连接到{host}:{port}")
+            t1 = threading.Thread(target=self.handle,daemon=True)
+            t1.start()
 
     def disconnect(self):
         if self.client:
             self.logger.warning(f"SP{self.client.getsockname()}断开连接")
             self.client.close()
+            self.client = None
 
     def run(self, count, loop, interval):
         """
@@ -68,8 +71,6 @@ class SP:
         :param loop: 循环次数
         :param interval: 发送间隔
         """
-        t1 = threading.Thread(target=self.handle)
-        t1.start()
         self.cmpp_connect()
         t2 = threading.Thread(target=self.active_test)
         t2.start()
@@ -100,10 +101,14 @@ class SP:
 
     def handle(self):
         while True:
+            try:
+                length = self.client.recv(4)
+            except ConnectionResetError as e:
+                self.logger.warning(e)
+                break
             if self.handle_num > 1 and not self.connect_ismg:
                 self.logger.warning("handle() exit!")
                 break
-            length = self.client.recv(4)
             command_length = struct.unpack(">I", length)[0]
             resp = length + self.client.recv(command_length - 4)
             command_id = struct.unpack(">L", resp[4:8])[0]
@@ -134,7 +139,7 @@ class SP:
     def base_send(self, command_name, **kwargs):
         command_id = get_command_id(command_name)
         self.sequence_id += 1
-        pdu = gen_pdu(command_name)(command_id=command_id, sequence_id=self.sequence_id, **kwargs)
+        pdu = get_pdu(command_name)(command_id=command_id, sequence_id=self.sequence_id, **kwargs)
         data = pdu.pack()
         self.client.sendall(data)
 
@@ -145,12 +150,14 @@ class SP:
             "command_id": None,
             "sequence_id": None
         }
-        pdu = gen_pdu(command_name)(**header)
+        pdu = get_pdu(command_name)(**header)
         resp_data = pdu.unpack(resp)
         pdu.total_length, pdu.command_id, pdu.sequence_id = resp_data
         return pdu
 
     def cmpp_connect(self):
+        if self.connect_ismg:
+            return
         timestamp = gen_timestamp()
         authenticator_source = gen_authenticator_source()
         body = {
@@ -162,7 +169,7 @@ class SP:
         self.base_send("CMPP_CONNECT", **body)
 
     def parse_cmpp_connect_resp(self, resp, command_name):
-        pdu = gen_pdu(command_name)()
+        pdu = get_pdu(command_name)()
         resp_data = pdu.unpack(resp)
         pdu.total_length, pdu.command_id, pdu.sequence_id, pdu.status, pdu.authenticatorISMG, pdu.version = resp_data
         if pdu.status == 0:
@@ -178,7 +185,7 @@ class SP:
         if pdu.sequence_id == self.sequence_id:
             self.logger.info(f"断开连接,{pdu}")
             self.connect_ismg = False
-            self.disconnect()
+            # self.disconnect()
 
     def cmpp_submit(self, msg):
         body = {
@@ -197,8 +204,8 @@ class SP:
             'msg_src': config.SOURCE_ADDR,
             'fee_type': "02",
             'fee_code': "000001",
-            'valid_time': "20230601120000",
-            'at_time': "20230531155000",
+            'valid_time': gen_timestamp_str(),
+            'at_time': gen_timestamp_str(),
             'src_id': config.SRC_ID,
             'dest_usr_tl': 1,
             'dest_terminal_id': config.TERMINAL_ID,
@@ -209,7 +216,7 @@ class SP:
         self.base_send("CMPP_SUBMIT", **body)
 
     def parse_cmpp_submit_resp(self, resp, command_name):
-        pdu = gen_pdu(command_name)()
+        pdu = get_pdu(command_name)()
         resp_data = pdu.unpack(resp)
         pdu.total_length, pdu.command_id, pdu.sequence_id, pdu.msg_id, pdu.result = resp_data
         if pdu.sequence_id == self.sequence_id:
@@ -219,7 +226,7 @@ class SP:
     def parse_cmpp_deliver(self, data, command_name):
         msg = data[89:-20]
         print("收到ISMG投递消息：", msg.decode())
-        pdu = gen_pdu(command_name)(msg_content=msg.decode())
+        pdu = get_pdu(command_name)(msg_content=msg.decode())
         unpack_data = pdu.unpack(data)
         pdu.msg_id = unpack_data[3]
         self.cmpp_deliver_resp(pdu.msg_id)
@@ -241,7 +248,7 @@ class SP:
         self.base_send("CMPP_QUERY", **body)
 
     def parse_cmpp_query_resp(self, resp, command_name):
-        pdu = gen_pdu(command_name)()
+        pdu = get_pdu(command_name)()
         unpack_data = pdu.unpack(resp)
         ti = unpack_data[3]
         if self.sequence_id:
@@ -251,7 +258,7 @@ class SP:
         self.base_send("CMPP_CANCEL", msg_id=msg_id)
 
     def parse_cmpp_cancel_resp(self, resp, command_name):
-        pdu = gen_pdu(command_name)()
+        pdu = get_pdu(command_name)()
         unpack_data = pdu.unpack(resp)
         success_id = unpack_data[3]
         if self.sequence_id:
@@ -264,7 +271,7 @@ class SP:
         self.base_send("CMPP_ACTIVE_TEST")
 
     def parse_cmpp_active_test_resp(self, resp, command_name):
-        pdu = gen_pdu(command_name)()
+        pdu = get_pdu(command_name)()
         unpack_data = pdu.unpack(resp)
         pdu.total_length, pdu.command_id, pdu.sequence_id = unpack_data[:-1]
         if self.sequence_id:
@@ -273,7 +280,7 @@ class SP:
     def parse_cmpp_fwd(self, data, command_name):
         msg = data[265:-20]
         print("fwd消息：", msg.decode())
-        pdu = gen_pdu(command_name)(msg_content=msg.decode())
+        pdu = get_pdu(command_name)(msg_content=msg.decode())
         unpack_data = pdu.unpack(data)
         pdu.msg_id = unpack_data[7]
         self.cmpp_fwd_resp(pdu.msg_id)
@@ -382,37 +389,30 @@ class SP:
         }
         self.base_send("CMPP_PUSH_MO_ROUTE_UPDATE_RESP", **body)
 
-    def fuzz(self, count, loop, interval, command_name="CMPP_CONNECT"):
-        if command_name != "CMPP_CONNECT":
-            self.cmpp_connect()
-        for i in range(loop):
-            for _ in range(count):
-                fuzz_data = {
-                    "CMPP_CONNECT": fuzzer.fuzz_cmpp_connect,
-                    # "submit_sm": fuzzer.fuzz_submit_sm(),
-                    # "enquire_link": fuzzer.fuzz_enquire_link(),
-                    # "unbind": fuzzer.fuzz_unbind(),
-                    # "query_sm": fuzzer.fuzz_query_sm(),
-                    # "cancel_sm": fuzzer.fuzz_cancel_sm(),
-                    # "replace_sm": fuzzer.fuzz_replace_sm(),
-                    # "deliver_sm_resp": fuzzer.fuzz_deliver_sm_resp(),
-                }
-                data = fuzz_data[command_name]()
-                self.logger.info(f"Starting Fuzz {self.fuzz_num}")
-                try:
-                    self.client.sendall(data)
-                    self.logger.info(f"Fuzz {self.fuzz_num} send successfully")
-                except BrokenPipeError as e:
-                    self.logger.error(f"Fuzz {self.fuzz_num} BrokenPipeError: {e}")
-                    with open(f"./data/err_send_data/{self.fuzz_num}", 'wb') as f:
-                        f.write(data)
-                    self.connect()
-                    self.cmpp_connect()
-                    self.client.sendall(data)
-                except Exception as e:
-                    self.logger.error(f"Fuzz {self.fuzz_num} failed with error: {e}")
-                    with open(f"./data/err_send_data/{self.fuzz_num}", 'wb') as f:
-                        f.write(data)
-                finally:
-                    self.fuzz_num += 1
-                    time.sleep(interval)
+    def fuzz(self, count, loop, interval):
+        for command_name in commands:
+            if "RESP" in command_name and command_name != "CMPP_DELIVER_RESP":
+                continue
+            if command_name != "CMPP_CONNECT" and not self.connect_ismg:
+                self.cmpp_connect()
+            for i in range(loop):
+                for _ in range(count):
+                    data = fuzzer.fuzz_data(command_name)
+                    self.logger.info(f"Starting Fuzz {self.fuzz_num}")
+                    try:
+                        self.client.sendall(data)
+                        self.logger.info(f"Fuzz {self.fuzz_num} send successfully")
+                    except BrokenPipeError as e:
+                        self.logger.error(f"Fuzz {self.fuzz_num} BrokenPipeError: {e}")
+                        with open(f"./data/err_send_data/{self.fuzz_num}", 'wb') as f:
+                            f.write(data)
+                        self.connect()
+                        self.cmpp_connect()
+                        self.client.sendall(data)
+                    except Exception as e:
+                        self.logger.error(f"Fuzz {self.fuzz_num} failed with error: {e}")
+                        with open(f"./data/err_send_data/{self.fuzz_num}", 'wb') as f:
+                            f.write(data)
+                    finally:
+                        self.fuzz_num += 1
+                        time.sleep(interval)

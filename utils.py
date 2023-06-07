@@ -10,8 +10,7 @@ def get_now():
     return datetime.datetime.now()
 
 
-def gen_pdu(command_name):
-    """生成PDU"""
+def get_pdu(command_name):
     try:
         return {
             'CMPP_CONNECT': CmppConnectPDU,  # 请求连接

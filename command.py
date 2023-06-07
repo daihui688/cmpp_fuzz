@@ -1,4 +1,4 @@
-command_ids = {
+commands = {
     'CMPP_CONNECT': 0x00000001,  # 请求连接
     'CMPP_CONNECT_RESP': 0x80000001,  # 请求连接应答
     'CMPP_TERMINATE': 0x00000002,  # 终止连接
@@ -35,10 +35,10 @@ command_ids = {
 
 
 def get_command_id(command_name):
-    return command_ids.get(command_name)
+    return commands.get(command_name)
 
 
 def get_command_name(command_id):
-    for name, _id in command_ids.items():
+    for name, _id in commands.items():
         if _id == command_id:
             return name
