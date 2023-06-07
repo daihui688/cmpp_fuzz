@@ -5,7 +5,11 @@ import netifaces
 import config
 from pdu import *
 
-now = datetime.datetime.now()
+
+def get_now():
+    return datetime.datetime.now()
+
+
 def gen_pdu(command_name):
     """生成PDU"""
     try:
@@ -63,19 +67,25 @@ def get_interfaces_and_ips():
             interfaces_ips[iface] = ip_address
     return interfaces_ips
 
-def full(s:int):
+
+def full(s: int):
     if len(str(s)) == 1:
         return "0" + str(s)
     return str(s)
 
+
 def gen_timestamp():
+    now = get_now()
     return int(full(now.month) + full(now.day) + full(now.hour) + full(now.minute) + full(now.second))
 
 
 def gen_time():
+    now = get_now()
     return full(now.year) + full(now.month) + full(now.day)
 
+
 def gen_timestamp_str():
+    now = get_now()
     return full(now.year) + full(now.month) + full(now.day) + full(now.hour) + full(now.minute) + full(now.second)
 
 
@@ -98,12 +108,12 @@ def gen_authenticator_ismg(status, authenticator_source, shared_secret=config.SH
 
 
 def gen_msg_id(sequence_id, gateway_code=106):
-    current_time = datetime.datetime.now()
-    month = current_time.month
-    day = current_time.day
-    hour = current_time.hour
-    minute = current_time.minute
-    second = current_time.second
+    now = get_now()
+    month = now.month
+    day = now.day
+    hour = now.hour
+    minute = now.minute
+    second = now.second
 
     # 构建时间部分
     time_part = (month << 60) | (day << 56) | (hour << 51) | (minute << 45) | (second << 39)
@@ -117,5 +127,3 @@ def gen_msg_id(sequence_id, gateway_code=106):
     # 合并各部分并返回Msg_Id
     msg_id = (time_part | gateway_part | sequence_part)
     return msg_id
-
-

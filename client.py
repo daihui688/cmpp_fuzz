@@ -4,7 +4,7 @@ import threading
 import time
 
 from command import get_command_id, get_command_name
-# from fuzz import fuzzer
+from fuzz import fuzzer
 from utils import *
 
 
@@ -16,7 +16,7 @@ class SP:
         self.connect_ismg = False
         self.msg_fmt = 0
         self.last_msg_id = None
-        self.fuzz_num = 0
+        self.fuzz_num = 1
         self.handle_num = 0
 
         # Set up logger
@@ -56,8 +56,6 @@ class SP:
             self.logger.error(f"连接到{host}:{port}失败,{e}")
         else:
             self.logger.info(f"{self.client.getsockname()}连接到{host}:{port}")
-            t1 = threading.Thread(target=self.handle)
-            t1.start()
 
     def disconnect(self):
         if self.client:
@@ -70,8 +68,9 @@ class SP:
         :param loop: 循环次数
         :param interval: 发送间隔
         """
+        t1 = threading.Thread(target=self.handle)
+        t1.start()
         self.cmpp_connect()
-        time.sleep(1)
         t2 = threading.Thread(target=self.active_test)
         t2.start()
         for i in range(loop):
@@ -383,37 +382,37 @@ class SP:
         }
         self.base_send("CMPP_PUSH_MO_ROUTE_UPDATE_RESP", **body)
 
-    # def fuzz(self, count, loop, interval, command_name="submit_sm"):
-    #     if command_name != "bind_transceiver":
-    #         self.bind()
-    #     for i in range(loop):
-    #         for _ in range(count):
-    #             fuzz_data = {
-    #                 "bind_transceiver": fuzzer.fuzz_bind_transceiver(),
-    #                 "submit_sm": fuzzer.fuzz_submit_sm(),
-    #                 "enquire_link": fuzzer.fuzz_enquire_link(),
-    #                 "unbind": fuzzer.fuzz_unbind(),
-    #                 "query_sm": fuzzer.fuzz_query_sm(),
-    #                 "cancel_sm": fuzzer.fuzz_cancel_sm(),
-    #                 "replace_sm": fuzzer.fuzz_replace_sm(),
-    #                 "deliver_sm_resp": fuzzer.fuzz_deliver_sm_resp(),
-    #             }
-    #             data = fuzz_data[command_name]
-    #             self.logger.info(f"Starting fuzz {self.fuzz_num}")
-    #             try:
-    #                 self.client.sendall(data)
-    #                 self.logger.info(f"Fuzz {self.fuzz_num} send successfully")
-    #             except BrokenPipeError as e:
-    #                 self.logger.error(f"Fuzz {self.fuzz_num} BrokenPipeError: {e}")
-    #                 with open(f"./data/err_send_data/{self.fuzz_num}", 'wb') as f:
-    #                     f.write(data)
-    #                 self.connect()
-    #                 self.bind()
-    #                 self.client.sendall(data)
-    #             except Exception as e:
-    #                 self.logger.error(f"Fuzz {self.fuzz_num} failed with error: {e}")
-    #                 with open(f"./data/err_send_data/{self.fuzz_num}", 'wb') as f:
-    #                     f.write(data)
-    #             finally:
-    #                 self.fuzz_num += 1
-    #                 time.sleep(interval)
+    def fuzz(self, count, loop, interval, command_name="CMPP_CONNECT"):
+        if command_name != "CMPP_CONNECT":
+            self.cmpp_connect()
+        for i in range(loop):
+            for _ in range(count):
+                fuzz_data = {
+                    "CMPP_CONNECT": fuzzer.fuzz_cmpp_connect,
+                    # "submit_sm": fuzzer.fuzz_submit_sm(),
+                    # "enquire_link": fuzzer.fuzz_enquire_link(),
+                    # "unbind": fuzzer.fuzz_unbind(),
+                    # "query_sm": fuzzer.fuzz_query_sm(),
+                    # "cancel_sm": fuzzer.fuzz_cancel_sm(),
+                    # "replace_sm": fuzzer.fuzz_replace_sm(),
+                    # "deliver_sm_resp": fuzzer.fuzz_deliver_sm_resp(),
+                }
+                data = fuzz_data[command_name]()
+                self.logger.info(f"Starting Fuzz {self.fuzz_num}")
+                try:
+                    self.client.sendall(data)
+                    self.logger.info(f"Fuzz {self.fuzz_num} send successfully")
+                except BrokenPipeError as e:
+                    self.logger.error(f"Fuzz {self.fuzz_num} BrokenPipeError: {e}")
+                    with open(f"./data/err_send_data/{self.fuzz_num}", 'wb') as f:
+                        f.write(data)
+                    self.connect()
+                    self.cmpp_connect()
+                    self.client.sendall(data)
+                except Exception as e:
+                    self.logger.error(f"Fuzz {self.fuzz_num} failed with error: {e}")
+                    with open(f"./data/err_send_data/{self.fuzz_num}", 'wb') as f:
+                        f.write(data)
+                finally:
+                    self.fuzz_num += 1
+                    time.sleep(interval)
