@@ -25,9 +25,10 @@ class CMPPFuzz:
     @property
     def random_int(self):
         return fake.random_int(0x00, 0xff)
+
     @staticmethod
     def random_ints(num):
-        return fake.random_int(0xff * (num-1),0xff * num)
+        return fake.random_int(0xff * (num - 1), 0xff * num)
 
     @property
     def random_byte(self):
@@ -38,10 +39,11 @@ class CMPPFuzz:
         for i in range(num):
             data += self.random_byte
         return data
-    def gen_body(self,command_name):
+
+    def gen_body(self, command_name):
         body = b''
         pdu = get_pdu(command_name)
-        try :
+        try:
             pdu.body
         except AttributeError:
             return body
@@ -75,9 +77,10 @@ class CMPPFuzz:
             data = header + body
             return data
 
-    def fuzz_data(self,command_name):
+    def fuzz_data(self, command_name):
         body = self.gen_body(command_name)
         data = self.gen_data(command_name, body)
         return data
+
 
 fuzzer = CMPPFuzz()

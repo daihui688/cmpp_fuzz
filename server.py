@@ -37,12 +37,11 @@ class ISMG:
             }
 
     def start(self):
-        self.logger.info("server started!")
+        self.logger.info(f"server started {self.host}:{self.port}")
         while True:
             # 等待客户端连接
             sock, client_address = self.server_socket.accept()
             self.logger.info(f'Client connected:{client_address}')
-            time.sleep(0.1)
             t1 = threading.Thread(target=self.handle, args=(sock,))
             t1.start()
 
@@ -95,7 +94,6 @@ class ISMG:
     def cmpp_terminate_resp(self, command_name,sock, req_data):
         unpacked_data = self.base_parse(command_name, req_data)
         self.base_send(command_name, sock)
-        time.sleep(1)
         self.logger.info(f"客户端断开连接")
 
     def cmpp_submit_resp(self, command_name,sock, req_data):

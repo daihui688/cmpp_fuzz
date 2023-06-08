@@ -181,8 +181,7 @@ class SP:
 
     def parse_cmpp_terminate_resp(self, resp, command_name):
         pdu = self.parse_base_resp(resp, command_name)
-        print(pdu.sequence_id, self.sequence_id)
-        if pdu.sequence_id == self.sequence_id:
+        if pdu.sequence_id:
             self.logger.info(f"断开连接,{pdu}")
             self.connect_ismg = False
             # self.disconnect()
@@ -390,13 +389,11 @@ class SP:
         self.base_send("CMPP_PUSH_MO_ROUTE_UPDATE_RESP", **body)
 
     def fuzz(self, count, loop, interval):
-        for command_name in commands:
-            if "RESP" in command_name and command_name != "CMPP_DELIVER_RESP":
-                continue
-            if command_name != "CMPP_CONNECT" and not self.connect_ismg:
-                self.cmpp_connect()
+        for command_name in config.FUZZ_COMMAND:
             for i in range(loop):
                 for _ in range(count):
+                    if command_name != "CMPP_CONNECT" and not self.connect_ismg:
+                        self.cmpp_connect()
                     data = fuzzer.fuzz_data(command_name)
                     self.logger.info(f"Starting Fuzz {self.fuzz_num}")
                     try:
