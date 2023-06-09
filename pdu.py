@@ -12,21 +12,41 @@ class Param:
 
 class PDU:
     header = {
-        "Total_Length": Param(type=int, size=4),
-        "Command_Id": Param(type=int, size=4),
-        "Sequence_Id": Param(type=int, size=4)
+        "total_length": Param(type=int, size=4),
+        "command_id": Param(type=int, size=4),
+        "sequence_id": Param(type=int, size=4)
     }
 
     def __init__(self, grammar=">3I"):
         self.struct = struct.Struct(grammar)
         self.total_length = self.struct.size
+        self.pack_param = []
 
     def _set_vals(self, d):
         for k, v in d.items():
             setattr(self, k, v)
 
+    def gen_pack_param(self):
+        for k, v in self.header.items():
+            param = getattr(self, k)
+            if v.type == str:
+                param = getattr(self, k).encode()
+            self.pack_param.append(param)
+        try:
+            self.body
+        except AttributeError:
+            return
+        for k, v in self.body.items():
+            param = getattr(self, k)
+            if v.type == str:
+                value = getattr(self, k)
+                if type(value) == str:
+                    param = value.encode()
+            self.pack_param.append(param)
+
     def pack(self):
-        data = self.struct.pack(self.total_length, self.command_id, self.sequence_id)
+        self.gen_pack_param()
+        data = self.struct.pack(*self.pack_param)
         return data
 
     def unpack(self, resp):
@@ -59,12 +79,6 @@ class CmppConnectPDU(PDU):
         grammar = f">3I6s16sBI"
         super().__init__(grammar)
 
-    def pack(self):
-        data = self.struct.pack(self.total_length, self.command_id, self.sequence_id,
-                                self.source_addr.encode(), self.authenticator_source,
-                                self.version, self.timestamp)
-        return data
-
 
 class CmppConnectRespPDU(PDU):
     body = {
@@ -77,12 +91,6 @@ class CmppConnectRespPDU(PDU):
         self._set_vals(kwargs)
         grammar = f">4I16sB"
         super().__init__(grammar)
-
-    def pack(self):
-        data = self.struct.pack(self.total_length, self.command_id, self.sequence_id, self.status,
-                                self.authenticatorISMG,
-                                self.version)
-        return data
 
     def __str__(self):
         return super().__str__() + f"Status:{self.status})"
@@ -139,31 +147,17 @@ class CmppSubmitPDU(PDU):
         grammar = f">3IQ4B10sB32s4B6s2s6s17s17s21sB32s2B{self.msg_length}s20s"
         super().__init__(grammar)
 
-    def pack(self):
-        data = self.struct.pack(self.total_length, self.command_id, self.sequence_id, self.msg_id, self.pk_total,
-                                self.pk_number, self.registered_delivery, self.msg_level, self.service_id.encode(),
-                                self.fee_usertype, self.fee_terminal_id.encode(), self.fee_terminal_type, self.tp_pid,
-                                self.tp_udhi, self.msg_fmt, self.msg_src.encode(), self.fee_type.encode(),
-                                self.fee_code.encode(), self.valid_time.encode(), self.at_time.encode(),
-                                self.src_id.encode(), self.dest_usr_tl, self.dest_terminal_id.encode(),
-                                self.dest_terminal_type, self.msg_length, self.msg_bytes, self.link_id.encode())
-        return data
-
 
 class CmppSubmitRespPDU(PDU):
     body = {
-        "msg_id": Param(type=int,size=8),
-        "result": Param(type=int,size=4)
+        "msg_id": Param(type=int, size=8),
+        "result": Param(type=int, size=4)
     }
 
     def __init__(self, **kwargs):
         self._set_vals(kwargs)
         grammar = f">3IQI"
         super().__init__(grammar)
-
-    def pack(self):
-        data = self.struct.pack(self.total_length, self.command_id, self.sequence_id, self.msg_id, self.result)
-        return data
 
     def __str__(self):
         return super().__str__() + f"Msg_Id:{self.msg_id}),Result:{self.result}"
@@ -205,28 +199,17 @@ class CmppDeliverPDU(PDU):
         grammar = f">3IQ21s10s3B32s3B{self.msg_length}s20s"
         super().__init__(grammar)
 
-    def pack(self):
-        data = self.struct.pack(self.total_length, self.command_id, self.sequence_id, self.msg_id,
-                                self.dest_id.encode(),
-                                self.service_id.encode(), self.tp_pid, self.tp_udhi, self.msg_fmt,
-                                self.src_terminal_id.encode(), self.src_terminal_type,
-                                self.registered_delivery, self.msg_length, self.msg_bytes, self.link_id.encode())
-        return data
-
 
 class CmppDeliverRespPDU(PDU):
     body = {
         "msg_id": Param(type=int, size=8),
         "result": Param(type=int, size=4)
     }
+
     def __init__(self, **kwargs):
         self._set_vals(kwargs)
         grammar = f">3IQI"
         super().__init__(grammar)
-
-    def pack(self):
-        data = self.struct.pack(self.total_length, self.command_id, self.sequence_id, self.msg_id, self.result)
-        return data
 
     def __str__(self):
         return super().__str__() + f"Msg_Id:{self.msg_id}),Result:{self.result}"
@@ -244,12 +227,6 @@ class CmppQueryPDU(PDU):
         self._set_vals(kwargs)
         grammar = f">3I8sB10s8s"
         super().__init__(grammar)
-
-    def pack(self):
-        data = self.struct.pack(self.total_length, self.command_id, self.sequence_id, self.time.encode(),
-                                self.query_type,
-                                self.query_code.encode(), self.reserve.encode())
-        return data
 
 
 class CmppQueryRespPDU(PDU):
@@ -272,13 +249,6 @@ class CmppQueryRespPDU(PDU):
         grammar = f">3I8sB10s8I"
         super().__init__(grammar)
 
-    def pack(self):
-        data = self.struct.pack(self.total_length, self.command_id, self.sequence_id, self.time.encode(),
-                                self.query_type,
-                                self.query_code.encode(), self.mt_tl_msg, self.mt_tl_usr, self.mt_scs, self.mt_wt,
-                                self.mt_fl, self.mo_scs, self.mo_wt, self.mo_fl)
-        return data
-
     def __str__(self):
         return super().__str__() + ''
 
@@ -293,10 +263,6 @@ class CmppCancelPDU(PDU):
         grammar = f">3IQ"
         super().__init__(grammar)
 
-    def pack(self):
-        data = self.struct.pack(self.total_length, self.command_id, self.sequence_id, self.msg_id)
-        return data
-
 
 class CmppCancelRespPDU(PDU):
     body = {
@@ -307,10 +273,6 @@ class CmppCancelRespPDU(PDU):
         self._set_vals(kwargs)
         grammar = f">4I"
         super().__init__(grammar)
-
-    def pack(self):
-        data = self.struct.pack(self.total_length, self.command_id, self.sequence_id, self.success_id)
-        return data
 
 
 class CmppActiveTestPDU(PDU):
@@ -324,10 +286,6 @@ class CmppActiveTestRespPDU(PDU):
         self._set_vals(kwargs)
         grammar = f">3Ic"
         super().__init__(grammar)
-
-    def pack(self):
-        data = self.struct.pack(self.total_length, self.command_id, self.sequence_id, self.reserved.encode())
-        return data
 
 
 class CmppFwdPDU(PDU):
@@ -390,20 +348,6 @@ class CmppFwdPDU(PDU):
         grammar = f">3I6s6s2BQ4B10sB21s32s4B6s2s6s17s17s21s32s3B21s32s2B{self.msg_length}s20s"
         super().__init__(grammar)
 
-    def pack(self):
-        data = self.struct.pack(self.total_length, self.command_id, self.sequence_id,
-                                self.source_id.encode(), self.destination_id.encode(), self.nodes_count,
-                                self.msg_fwd_type,
-                                self.msg_id, self.pk_total, self.pk_number, self.registered_delivery, self.msg_level,
-                                self.service_id.encode(), self.fee_usertype, self.fee_terminal_id.encode(),
-                                self.fee_terminal_pseudo.encode(), self.fee_terminal_usertype, self.tp_pid,
-                                self.tp_udhi, self.msg_fmt, self.msg_src.encode(), self.fee_type.encode(),
-                                self.fee_code.encode(), self.valid_time.encode(), self.at_time.encode(),
-                                self.src_id.encode(), self.src_pseudo.encode(), self.src_usertype, self.src_type,
-                                self.dest_usr_tl, self.dest_id.encode(), self.dest_pseudo.encode(),
-                                self.dest_usertype, self.msg_length, self.msg_bytes, self.link_id.encode())
-        return data
-
 
 class CmppFwdRespPDU(PDU):
     body = {
@@ -417,11 +361,6 @@ class CmppFwdRespPDU(PDU):
         self._set_vals(kwargs)
         grammar = f">3IQ2BI"
         super().__init__(grammar)
-
-    def pack(self):
-        data = self.struct.pack(self.total_length, self.command_id, self.sequence_id, self.msg_id, self.pk_total,
-                                self.pk_number, self.result)
-        return data
 
     def __str__(self):
         return super().__str__() + f"Msg_Id:{self.msg_id}),Result:{self.result}"
@@ -440,11 +379,6 @@ class CmppMtRoutePDU(PDU):
         self._set_vals(kwargs)
         grammar = f">3I6s21s"
         super().__init__(grammar)
-
-    def pack(self):
-        data = self.struct.pack(self.total_length, self.command_id, self.sequence_id, self.source_id.encode(),
-                                self.terminal_id.encode())
-        return data
 
 
 class CmppMtRouteRespPDU(PDU):
@@ -466,13 +400,6 @@ class CmppMtRouteRespPDU(PDU):
         grammar = f">4I6s15sH9s9s4s2B14s"
         super().__init__(grammar)
 
-    def pack(self):
-        data = self.struct.pack(self.total_length, self.command_id, self.sequence_id, self.route_id,
-                                self.destination_id.encode(), self.gateway_ip.encode(), self.gateway_port,
-                                self.start_id.encode(), self.end_id.encode(), self.area_code.encode(), self.result,
-                                self.user_type, self.time_stamp.encode())
-        return data
-
 
 class CmppMoRoutePDU(PDU):
     """
@@ -489,11 +416,6 @@ class CmppMoRoutePDU(PDU):
         self._set_vals(kwargs)
         grammar = f">3I6s21s10sI"
         super().__init__(grammar)
-
-    def pack(self):
-        data = self.struct.pack(self.total_length, self.command_id, self.sequence_id, self.source_id.encode(),
-                                self.sp_code.encode(), self.service_id.encode(), self.service_code)
-        return data
 
 
 class CmppMoRouteRespPDU(PDU):
@@ -516,13 +438,6 @@ class CmppMoRouteRespPDU(PDU):
         grammar = f">4I6s15sH6s21sB2IB14s"
         super().__init__(grammar)
 
-    def pack(self):
-        data = self.struct.pack(self.total_length, self.command_id, self.sequence_id, self.route_id,
-                                self.destination_id.encode(), self.gateway_ip.encode(), self.gateway_port,
-                                self.sp_id.encode(), self.sp_code.encode(), self.sp_acess_type, self.start_code,
-                                self.end_code, self.result, self.time_stamp.encode())
-        return data
-
 
 class CmppGetMtRoutePDU(PDU):
     """
@@ -538,11 +453,6 @@ class CmppGetMtRoutePDU(PDU):
         self._set_vals(kwargs)
         grammar = f">3I6s4si"
         super().__init__(grammar)
-
-    def pack(self):
-        data = self.struct.pack(self.total_length, self.command_id, self.sequence_id, self.source_id.encode(),
-                                self.route_type.encode(), self.last_route_id)
-        return data
 
 
 class CmppGetMtRouteRespPDU(PDU):
@@ -565,13 +475,6 @@ class CmppGetMtRouteRespPDU(PDU):
         self._set_vals(kwargs)
         grammar = f">4I6s15sH9s9s4s2B2I14s"
         super().__init__(grammar)
-
-    def pack(self):
-        data = self.struct.pack(self.total_length, self.command_id, self.sequence_id, self.route_id,
-                                self.destination_id.encode(), self.gateway_ip.encode(), self.gateway_port,
-                                self.start_id.encode(), self.end_id.encode(), self.area_code.encode(), self.result,
-                                self.user_type, self.route_total, self.route_number, self.time_stamp.encode())
-        return data
 
 
 class CmppGetMoRoutePDU(CmppGetMtRoutePDU):
@@ -604,15 +507,6 @@ class CmppGetMoRouteRespPDU(PDU):
         grammar = f">4I6s15sH6s21sB10s2IB2I14s"
         super().__init__(grammar)
 
-    def pack(self):
-        data = self.struct.pack(self.total_length, self.command_id, self.sequence_id, self.route_id,
-                                self.destination_id.encode(), self.gateway_ip.encode(), self.gateway_port,
-                                self.sp_id.encode(), self.sp_code.encode(), self.sp_acess_type,
-                                self.service_id.encode(),
-                                self.start_code, self.end_code, self.result, self.route_total, self.route_number,
-                                self.time_stamp.encode())
-        return data
-
 
 class CmppMtRouteUpdatePDU(PDU):
     """
@@ -635,12 +529,6 @@ class CmppMtRouteUpdatePDU(PDU):
         grammar = f">3IBI6s15sH9s9s4sB"
         super().__init__(grammar)
 
-    def pack(self):
-        data = self.struct.pack(self.total_length, self.command_id, self.sequence_id, self.update_type, self.route_id,
-                                self.destination_id.encode(), self.gateway_ip.encode(), self.gateway_port,
-                                self.start_id.encode(), self.end_id.encode(), self.area_code.encode(), self.user_type)
-        return data
-
 
 class CmppMtRouteUpdateRespPDU(PDU):
     body = {
@@ -653,11 +541,6 @@ class CmppMtRouteUpdateRespPDU(PDU):
         self._set_vals(kwargs)
         grammar = f">3IBI14s"
         super().__init__(grammar)
-
-    def pack(self):
-        data = self.struct.pack(self.total_length, self.command_id, self.sequence_id, self.result, self.route_id,
-                                self.time_stamp.encode())
-        return data
 
 
 class CmppMoRouteUpdatePDU(PDU):
@@ -682,13 +565,6 @@ class CmppMoRouteUpdatePDU(PDU):
         self._set_vals(kwargs)
         grammar = f">3IBI6s15sH6s21sB10s2I"
         super().__init__(grammar)
-
-    def pack(self):
-        data = self.struct.pack(self.total_length, self.command_id, self.sequence_id, self.update_type, self.route_id,
-                                self.destination_id.encode(), self.gateway_ip.encode(), self.gateway_port,
-                                self.sp_id.encode(), self.sp_code.encode(), self.sp_acess_type,
-                                self.service_id.encode(), self.start_code, self.end_code)
-        return data
 
 
 class CmppMoRouteUpdateRespPDU(CmppMtRouteUpdateRespPDU):
@@ -717,13 +593,6 @@ class CmppPushMtRouteUpdatePDU(PDU):
         grammar = f">3IBI6s15sH9s9s4sB14s"
         super().__init__(grammar)
 
-    def pack(self):
-        data = self.struct.pack(self.total_length, self.command_id, self.sequence_id, self.update_type, self.route_id,
-                                self.destination_id.encode(), self.gateway_ip.encode(), self.gateway_port,
-                                self.start_id.encode(), self.end_id.encode(), self.area_code.encode(), self.user_type,
-                                self.time_stamp.encode())
-        return data
-
 
 class CmppPushMtRouteUpdateRespPDU(PDU):
     body = {
@@ -734,10 +603,6 @@ class CmppPushMtRouteUpdateRespPDU(PDU):
         self._set_vals(kwargs)
         grammar = f">3IB"
         super().__init__(grammar)
-
-    def pack(self):
-        data = self.struct.pack(self.total_length, self.command_id, self.sequence_id, self.result)
-        return data
 
 
 class CmppPushMoRouteUpdatePDU(PDU):
@@ -763,13 +628,6 @@ class CmppPushMoRouteUpdatePDU(PDU):
         self._set_vals(kwargs)
         grammar = f">3IBI6s15sH6s21sB10s2I14s"
         super().__init__(grammar)
-
-    def pack(self):
-        data = self.struct.pack(self.total_length, self.command_id, self.sequence_id, self.update_type, self.route_id,
-                                self.destination_id.encode(), self.gateway_ip.encode(), self.gateway_port,
-                                self.sp_id.encode(), self.sp_code.encode(), self.sp_acess_type,
-                                self.service_id.encode(), self.start_code, self.end_code, self.time_stamp.encode())
-        return data
 
 
 class CmppPushMoRouteUpdateRespPDU(CmppPushMtRouteUpdateRespPDU):

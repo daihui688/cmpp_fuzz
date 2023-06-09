@@ -133,8 +133,7 @@ class SP:
                 self.cmpp_active_test()
                 time.sleep(1)
             except Exception as e:
-                self.logger.error(e)
-                break
+                raise e
 
     def base_send(self, command_name, **kwargs):
         command_id = get_command_id(command_name)
