@@ -17,7 +17,6 @@ class SP:
         self.msg_fmt = 0
         self.last_msg_id = None
         self.fuzz_num = 1
-        self.handle_num = 0
 
         # Set up logger
         self.logger = logging.getLogger(__name__)
@@ -28,23 +27,23 @@ class SP:
         self.logger.addHandler(handler)
 
         self.command_mapping = {
-                "CMPP_CONNECT_RESP": self.parse_cmpp_connect_resp,
-                "CMPP_TERMINATE_RESP": self.parse_cmpp_terminate_resp,
-                "CMPP_SUBMIT_RESP": self.parse_cmpp_submit_resp,
-                "CMPP_DELIVER": self.parse_cmpp_deliver,
-                "CMPP_QUERY_RESP": self.parse_cmpp_query_resp,
-                "CMPP_ACTIVE_TEST_RESP": self.parse_cmpp_active_test_resp,
-                "CMPP_CANCEL_RESP": self.parse_cmpp_cancel_resp,
-                "CMPP_FWD": self.parse_cmpp_fwd,
-                "CMPP_MT_ROUTE": self.cmpp_mt_route_resp,
-                "CMPP_MO_ROUTE": self.cmpp_mo_route_resp,
-                "CMPP_GET_MT_ROUTE": self.cmpp_get_mt_route_resp,
-                "CMPP_GET_MO_ROUTE": self.cmpp_get_mo_route_resp,
-                "CMPP_MT_ROUTE_UPDATE": self.cmpp_mt_route_update_resp,
-                "CMPP_MO_ROUTE_UPDATE": self.cmpp_mo_route_update_resp,
-                "CMPP_PUSH_MT_ROUTE_UPDATE": self.cmpp_push_mt_route_update_resp,
-                "CMPP_PUSH_MO_ROUTE_UPDATE": self.cmpp_push_mo_route_update_resp
-            }
+            "CMPP_CONNECT_RESP": self.parse_cmpp_connect_resp,
+            "CMPP_TERMINATE_RESP": self.parse_cmpp_terminate_resp,
+            "CMPP_SUBMIT_RESP": self.parse_cmpp_submit_resp,
+            "CMPP_DELIVER": self.parse_cmpp_deliver,
+            "CMPP_QUERY_RESP": self.parse_cmpp_query_resp,
+            "CMPP_ACTIVE_TEST_RESP": self.parse_cmpp_active_test_resp,
+            "CMPP_CANCEL_RESP": self.parse_cmpp_cancel_resp,
+            "CMPP_FWD": self.parse_cmpp_fwd,
+            "CMPP_MT_ROUTE": self.cmpp_mt_route_resp,
+            "CMPP_MO_ROUTE": self.cmpp_mo_route_resp,
+            "CMPP_GET_MT_ROUTE": self.cmpp_get_mt_route_resp,
+            "CMPP_GET_MO_ROUTE": self.cmpp_get_mo_route_resp,
+            "CMPP_MT_ROUTE_UPDATE": self.cmpp_mt_route_update_resp,
+            "CMPP_MO_ROUTE_UPDATE": self.cmpp_mo_route_update_resp,
+            "CMPP_PUSH_MT_ROUTE_UPDATE": self.cmpp_push_mt_route_update_resp,
+            "CMPP_PUSH_MO_ROUTE_UPDATE": self.cmpp_push_mo_route_update_resp
+        }
 
     def connect(self, host=config.ISMG_HOST, port=config.ISMG_PORT):
         self.client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -56,7 +55,7 @@ class SP:
             self.logger.error(f"连接到{host}:{port}失败,{e}")
         else:
             self.logger.info(f"{self.client.getsockname()}连接到{host}:{port}")
-            t1 = threading.Thread(target=self.handle,daemon=True)
+            t1 = threading.Thread(target=self.handle)
             t1.start()
 
     def disconnect(self):
@@ -72,8 +71,6 @@ class SP:
         :param interval: 发送间隔
         """
         self.cmpp_connect()
-        t2 = threading.Thread(target=self.active_test)
-        t2.start()
         for i in range(loop):
             # option = input("请输入你要执行的操作编号(0.测试,1.发送消息):")
             option = "1"
@@ -83,9 +80,15 @@ class SP:
                 self.cmpp_cancel(self.last_msg_id)
                 time.sleep(interval)
             elif option == "1":
+                while True:
+                    if self.connect_ismg:
+                        break
+                t2 = threading.Thread(target=self.active_test)
+                t2.start()
                 for i in range(count):
-                    # msg = input("请输入你要发送的消息:")
-                    msg = "daihui688"
+                    # msg = input(">>>")
+                    self.fuzz_num += 1
+                    msg = "daihui" + str(self.fuzz_num)
                     if contains_chinese(msg):
                         self.msg_fmt = 8
                     if msg.strip().upper() == "Q":
@@ -94,32 +97,29 @@ class SP:
                     self.cmpp_submit(msg)
                     time.sleep(interval)
             elif option == "q":
-                self.cmpp_terminate()
+                self.disconnect()
                 break
             else:
                 self.logger.error("错误的编号!")
 
     def handle(self):
+        if not self.client:
+            return
         while True:
             try:
                 length = self.client.recv(4)
-            except ConnectionResetError as e:
+            except Exception as e:
                 self.logger.warning(e)
                 break
-            if self.handle_num > 1 and not self.connect_ismg:
-                self.logger.warning("handle() exit!")
+            if len(length) != 4:
                 break
             command_length = struct.unpack(">I", length)[0]
             resp = length + self.client.recv(command_length - 4)
             command_id = struct.unpack(">L", resp[4:8])[0]
             command_name = get_command_name(command_id)
             if command_name in self.command_mapping:
-                if command_name == "CMPP_CONNECT_RESP":
-                    self.parse_cmpp_connect_resp(resp, command_name)
-                    self.handle_num = 1
-                else:
-                    # noinspection PyArgumentList
-                    self.command_mapping.get(command_name, lambda: None)(resp, command_name)
+                # noinspection PyArgumentList
+                self.command_mapping.get(command_name, lambda: None)(resp, command_name)
             else:
                 self.logger.error("异常数据")
                 with open(f"./data/err_resp_data/{self.fuzz_num}", "wb") as f:
@@ -130,8 +130,8 @@ class SP:
             if not self.connect_ismg:
                 break
             try:
-                time.sleep(60)
                 self.cmpp_active_test()
+                time.sleep(1)
             except Exception as e:
                 self.logger.error(e)
                 break
@@ -223,9 +223,9 @@ class SP:
             self.last_msg_id = pdu.msg_id
 
     def parse_cmpp_deliver(self, data, command_name):
-        msg = data[89:-20]
-        print("收到ISMG投递消息：", msg.decode())
-        pdu = get_pdu(command_name)(msg_content=msg.decode())
+        msg_bytes = data[89:-20]
+        print("收到ISMG投递消息：", msg_bytes.decode('ascii'))
+        pdu = get_pdu(command_name)(msg_bytes=msg_bytes)
         unpack_data = pdu.unpack(data)
         pdu.msg_id = unpack_data[3]
         self.cmpp_deliver_resp(pdu.msg_id)
@@ -293,7 +293,7 @@ class SP:
         }
         self.base_send("CMPP_FWD_RESP", **body)
 
-    def cmpp_mt_route_resp(self,resp, command_name):
+    def cmpp_mt_route_resp(self, resp, command_name):
         body = {
             "route_id": 0,
             "destination_id": config.DESTINATION_ID,
@@ -308,7 +308,7 @@ class SP:
         }
         self.base_send("CMPP_MT_ROUTE_RESP", **body)
 
-    def cmpp_mo_route_resp(self,resp, command_name):
+    def cmpp_mo_route_resp(self, resp, command_name):
         body = {
             "route_id": 1,
             "destination_id": config.DESTINATION_ID,
@@ -324,7 +324,7 @@ class SP:
         }
         self.base_send("CMPP_MO_ROUTE_RESP", **body)
 
-    def cmpp_get_mt_route_resp(self,resp, command_name):
+    def cmpp_get_mt_route_resp(self, resp, command_name):
         body = {
             "route_id": 0,
             "destination_id": config.DESTINATION_ID,
@@ -341,7 +341,7 @@ class SP:
         }
         self.base_send("CMPP_GET_MT_ROUTE_RESP", **body)
 
-    def cmpp_get_mo_route_resp(self,resp, command_name):
+    def cmpp_get_mo_route_resp(self, resp, command_name):
         body = {
             "route_id": 1,
             "destination_id": config.DESTINATION_ID,
@@ -360,7 +360,7 @@ class SP:
         }
         self.base_send("CMPP_GET_MO_ROUTE_RESP", **body)
 
-    def cmpp_mt_route_update_resp(self,resp, command_name):
+    def cmpp_mt_route_update_resp(self, resp, command_name):
         body = {
             "result": 0,
             "route_id": 1,
@@ -368,7 +368,7 @@ class SP:
         }
         self.base_send("CMPP_MT_ROUTE_UPDATE_RESP", **body)
 
-    def cmpp_mo_route_update_resp(self,resp, command_name):
+    def cmpp_mo_route_update_resp(self, resp, command_name):
         body = {
             "result": 0,
             "route_id": 1,
@@ -376,13 +376,13 @@ class SP:
         }
         self.base_send("CMPP_MO_ROUTE_UPDATE_RESP", **body)
 
-    def cmpp_push_mt_route_update_resp(self,resp, command_name):
+    def cmpp_push_mt_route_update_resp(self, resp, command_name):
         body = {
             "result": 0,
         }
         self.base_send("CMPP_PUSH_MT_ROUTE_UPDATE_RESP", **body)
 
-    def cmpp_push_mo_route_update_resp(self,resp, command_name):
+    def cmpp_push_mo_route_update_resp(self, resp, command_name):
         body = {
             "result": 0,
         }
