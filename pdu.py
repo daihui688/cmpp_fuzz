@@ -1,7 +1,6 @@
 import struct
 
 import const
-import command
 
 
 class Param:
@@ -29,8 +28,6 @@ class PDU:
     def gen_pack_param(self):
         for k, v in self.header.items():
             param = getattr(self, k)
-            if v.type == str:
-                param = getattr(self, k).encode()
             self.pack_param.append(param)
         try:
             self.body
@@ -42,6 +39,8 @@ class PDU:
                 value = getattr(self, k)
                 if type(value) == str:
                     param = value.encode()
+                    if k == "msg_content":
+                        param = self.message_bytes
             self.pack_param.append(param)
 
     def pack(self):
@@ -59,8 +58,21 @@ class PDU:
             return self.msg_content.encode('ascii')
 
     def __str__(self):
-        command_id = command.get_command_name(self.command_id)
-        return f"PDU(Total_Length:{self.total_length},Command_Id:{command_id},Sequence_Id:{self.sequence_id},"
+        s = 'PDU('
+        for k in self.header:
+            s += f"{k}:{getattr(self,k)},"
+        try:
+            self.body
+        except AttributeError:
+            pass
+        for k in self.body:
+            s += f"{k}:{getattr(self,k)},"
+        return s + ')'
+
+class HeaderPDU(PDU):
+    def __init__(self, **kwargs):
+        self._set_vals(kwargs)
+        super().__init__()
 
 
 class CmppConnectPDU(PDU):
@@ -92,20 +104,14 @@ class CmppConnectRespPDU(PDU):
         grammar = f">4I16sB"
         super().__init__(grammar)
 
-    def __str__(self):
-        return super().__str__() + f"Status:{self.status})"
 
 
-class CmppTerminatePDU(PDU):
-    def __init__(self, **kwargs):
-        self._set_vals(kwargs)
-        super().__init__()
+class CmppTerminatePDU(HeaderPDU):
+    pass
 
 
-class CmppTerminateRespPDU(PDU):
-    def __init__(self, **kwargs):
-        self._set_vals(kwargs)
-        super().__init__()
+class CmppTerminateRespPDU(HeaderPDU):
+    pass
 
 
 class CmppSubmitPDU(PDU):
@@ -141,7 +147,7 @@ class CmppSubmitPDU(PDU):
         try:
             if self.msg_content:
                 self.msg_bytes = self.gen_msg_bytes()
-        except AttributeError as e:
+        except AttributeError:
             pass
         self.msg_length = len(self.msg_bytes)
         grammar = f">3IQ4B10sB32s4B6s2s6s17s17s21sB32s2B{self.msg_length}s20s"
@@ -159,8 +165,6 @@ class CmppSubmitRespPDU(PDU):
         grammar = f">3IQI"
         super().__init__(grammar)
 
-    def __str__(self):
-        return super().__str__() + f"Msg_Id:{self.msg_id}),Result:{self.result}"
 
 
 class CmppDeliverPDU(PDU):
@@ -193,7 +197,7 @@ class CmppDeliverPDU(PDU):
         try:
             if self.msg_content:
                 self.msg_bytes = self.gen_msg_bytes()
-        except AttributeError as e:
+        except AttributeError:
             pass
         self.msg_length = len(self.msg_bytes)
         grammar = f">3IQ21s10s3B32s3B{self.msg_length}s20s"
@@ -211,8 +215,7 @@ class CmppDeliverRespPDU(PDU):
         grammar = f">3IQI"
         super().__init__(grammar)
 
-    def __str__(self):
-        return super().__str__() + f"Msg_Id:{self.msg_id}),Result:{self.result}"
+
 
 
 class CmppQueryPDU(PDU):
@@ -249,8 +252,7 @@ class CmppQueryRespPDU(PDU):
         grammar = f">3I8sB10s8I"
         super().__init__(grammar)
 
-    def __str__(self):
-        return super().__str__() + ''
+
 
 
 class CmppCancelPDU(PDU):
@@ -275,10 +277,8 @@ class CmppCancelRespPDU(PDU):
         super().__init__(grammar)
 
 
-class CmppActiveTestPDU(PDU):
-    def __init__(self, **kwargs):
-        self._set_vals(kwargs)
-        super().__init__()
+class CmppActiveTestPDU(HeaderPDU):
+    pass
 
 
 class CmppActiveTestRespPDU(PDU):
@@ -362,8 +362,7 @@ class CmppFwdRespPDU(PDU):
         grammar = f">3IQ2BI"
         super().__init__(grammar)
 
-    def __str__(self):
-        return super().__str__() + f"Msg_Id:{self.msg_id}),Result:{self.result}"
+
 
 
 class CmppMtRoutePDU(PDU):
