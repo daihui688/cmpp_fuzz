@@ -40,7 +40,7 @@ class PDU:
                 if type(value) == str:
                     param = value.encode()
                     if k == "msg_content":
-                        param = self.message_bytes
+                        param = self.msg_bytes
             self.pack_param.append(param)
 
     def pack(self):

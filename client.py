@@ -86,9 +86,9 @@ class SP:
                 t2 = threading.Thread(target=self.active_test)
                 t2.start()
                 for i in range(count):
-                    # msg = input(">>>")
-                    self.fuzz_num += 1
-                    msg = "daihui" + str(self.fuzz_num)
+                    msg = input(">>>")
+                    # self.fuzz_num += 1
+                    # msg = "daihui" + str(self.fuzz_num)
                     if contains_chinese(msg):
                         self.msg_fmt = 8
                     if msg.strip().upper() == "Q":

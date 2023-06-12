@@ -1,5 +1,6 @@
 from faker import Faker
 
+import command
 from utils import *
 
 fake = Faker()

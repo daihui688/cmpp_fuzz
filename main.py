@@ -22,5 +22,5 @@ if __name__ == '__main__':
     host = interfaces_ips.get(interface)
     client = SP("127.0.0.1")
     client.connect()
-    # client.run(count, loop, interval)
-    client.fuzz(count, loop, interval)
+    client.run(count, loop, interval)
+    # client.fuzz(count, loop, interval)
