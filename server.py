@@ -3,7 +3,7 @@ import socket
 import threading
 import time
 
-from command import get_command_id, get_command_name
+from command import get_command_id
 from utils import *
 
 
@@ -92,7 +92,7 @@ class ISMG:
         self.base_send(command_name, sock, **body)
 
     def cmpp_terminate_resp(self, command_name,sock, req_data):
-        unpacked_data = self.base_parse(command_name, req_data)
+        self.base_parse(command_name, req_data)
         self.base_send(command_name, sock)
         self.logger.info(f"客户端断开连接")
 

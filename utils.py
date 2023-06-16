@@ -1,3 +1,4 @@
+import os
 import hashlib
 import datetime
 import netifaces
@@ -126,3 +127,7 @@ def gen_msg_id(sequence_id, gateway_code=106):
     # 合并各部分并返回Msg_Id
     msg_id = (time_part | gateway_part | sequence_part)
     return msg_id
+
+def create_dir(dir_str):
+    if not os.path.exists(dir_str):
+        os.makedirs(dir_str)

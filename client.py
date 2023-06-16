@@ -85,7 +85,7 @@ class SP:
                         break
                 t2 = threading.Thread(target=self.active_test)
                 t2.start()
-                for i in range(count):
+                for j in range(count):
                     msg = input(">>>")
                     # self.fuzz_num += 1
                     # msg = "daihui" + str(self.fuzz_num)
@@ -122,7 +122,9 @@ class SP:
                 self.command_mapping.get(command_name, lambda: None)(resp, command_name)
             else:
                 self.logger.error("异常数据")
-                with open(f"./data/err_resp_data/{self.fuzz_num}", "wb") as f:
+                dir_str = "data/err_resp_data"
+                create_dir(dir_str)
+                with open(os.path.join(dir_str, f'{self.fuzz_num}'), "wb") as f:
                     f.write(resp)
 
     def active_test(self):
@@ -223,7 +225,7 @@ class SP:
 
     def parse_cmpp_deliver(self, data, command_name):
         msg_bytes = data[89:-20]
-        print("收到ISMG投递消息：", msg_bytes.decode('ascii'))
+        self.logger.info(f"收到ISMG投递消息：{msg_bytes.decode('ascii')}", )
         pdu = get_pdu(command_name)(msg_bytes=msg_bytes)
         unpack_data = pdu.unpack(data)
         pdu.msg_id = unpack_data[3]
@@ -250,7 +252,7 @@ class SP:
         unpack_data = pdu.unpack(resp)
         ti = unpack_data[3]
         if self.sequence_id:
-            print("time:", ti.decode())
+            self.logger.info(f"time:{ti.decode()}")
 
     def cmpp_cancel(self, msg_id):
         self.base_send("CMPP_CANCEL", msg_id=msg_id)
@@ -400,15 +402,18 @@ class SP:
                         self.logger.info(f"Fuzz {self.fuzz_num} send successfully")
                     except BrokenPipeError as e:
                         self.logger.error(f"Fuzz {self.fuzz_num} BrokenPipeError: {e}")
-                        with open(f"./data/err_send_data/{self.fuzz_num}", 'wb') as f:
+                        dir_str = "data/err_send_data"
+                        create_dir(dir_str)
+                        with open(os.path.join(dir_str, f'{self.fuzz_num}'), "wb") as f:
                             f.write(data)
                         self.connect()
                         self.cmpp_connect()
                         self.client.sendall(data)
                     except Exception as e:
                         self.logger.error(f"Fuzz {self.fuzz_num} failed with error: {e}")
-                        with open(f"./data/err_send_data/{self.fuzz_num}", 'wb') as f:
+                        dir_str = "data/err_send_data"
+                        create_dir(dir_str)
+                        with open(os.path.join(dir_str, f'{self.fuzz_num}'), "wb") as f:
                             f.write(data)
-                    finally:
                         self.fuzz_num += 1
                         time.sleep(interval)
