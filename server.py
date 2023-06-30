@@ -135,12 +135,12 @@ class ISMG:
     def cmpp_deliver(self, sock, msg):
         body = {
             'msg_id': gen_msg_id(self.sequence_id),
-            'dest_id': "18279230916",
+            'dest_id': config.SRC_ID,
             'service_id': config.SERVICE_ID,
             'tp_pid': 1,
             'tp_udhi': 1,
             'msg_fmt': self.msg_fmt,
-            'src_terminal_id': "13520376620",
+            'src_terminal_id': config.TERMINAL_ID,
             'src_terminal_type': 0,
             'registered_delivery': 0,
             'msg_content': "recv:" + msg,
@@ -152,8 +152,8 @@ class ISMG:
         unpacked_data = self.base_parse(command_name, req_data)
         msg_id, result = unpacked_data[3:]
         print(msg_id, result)
-        # self.cmpp_mo_route(sock)
-        # time.sleep(0.1)
+        self.cmpp_mo_route(sock)
+        time.sleep(0.1)
         # self.cmpp_fwd(sock, str(msg_id))
         # time.sleep(0.1)
         # self.cmpp_mt_route(sock)
@@ -194,7 +194,7 @@ class ISMG:
             'msg_level': 1,
             'service_id': config.SERVICE_ID,
             'fee_usertype': 3,
-            'fee_terminal_id': "13520376620",
+            'fee_terminal_id': config.TERMINAL_ID,
             'fee_terminal_pseudo': " ",
             'fee_terminal_usertype': 0,
             'tp_pid': 1,
@@ -205,12 +205,12 @@ class ISMG:
             'fee_code': "000001",
             'valid_time': "20230601120000",
             'at_time': "20230531155000",
-            'src_id': "18279230916",
+            'src_id': config.SRC_ID,
             'src_pseudo': " ",
             'src_usertype': 0,
             'src_type': 0,
             'dest_usr_tl': 1,
-            'dest_id': "+8613520376620",
+            'dest_id': config.TERMINAL_ID,
             'dest_pseudo': " ",
             'dest_usertype': 0,
             'msg_content': "cmpp fwd " + msg,
